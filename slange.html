@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a3d2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Slange">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a3d2e'/%3E%3Crect x='14' y='30' width='12' height='12' rx='2' fill='%2374d39a'/%3E%3Crect x='26' y='30' width='12' height='12' rx='2' fill='%2374d39a'/%3E%3Crect x='38' y='30' width='12' height='12' rx='2' fill='%2374d39a'/%3E%3Crect x='38' y='18' width='12' height='12' rx='2' fill='%23e8c468'/%3E%3C/svg%3E">
+<title>Slange</title>
+<style>
+  :root{--felt:#0a3d2e;--felt-2:#0d4a37;--felt-line:#10573f;--gold:#e8c468;--gold-dim:#b89640;--cream:#f3ead6;--ink:#0a2018;--snake:#74d39a;--head:#a8e8c0;--food:#e8c468;--grid:#08251b;--shadow:rgba(0,0,0,.4);}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;touch-action:none;}
+  html,body{margin:0;padding:0;}
+  body{font-family:"Georgia",serif;background:radial-gradient(ellipse at 50% 0%, var(--felt-2), var(--felt) 75%);color:var(--cream);min-height:100vh;min-height:100dvh;padding:env(safe-area-inset-top) 12px 16px;}
+  .wrap{max-width:460px;margin:0 auto;}
+  .topbar{display:flex;align-items:center;gap:10px;padding:10px 2px 6px;}
+  .topbar h1{flex:1;font-size:20px;margin:0;color:var(--gold);font-variant:small-caps;letter-spacing:1px;}
+  .topbar .stat{font-size:14px;color:var(--gold-dim);}
+  .btn{font-family:inherit;font-size:14px;border:1px solid var(--felt-line);border-radius:9px;padding:8px 11px;cursor:pointer;background:transparent;color:var(--gold);}
+  .btn.solid{background:var(--gold);color:var(--ink);border:none;font-weight:bold;}
+  .btn:active{transform:translateY(1px);}
+  a.btn{text-decoration:none;display:inline-block;}
+  .diffs{display:flex;gap:6px;margin:6px 0;}
+  .diffs .btn{flex:1;text-align:center;font-size:13px;}
+  .diffs .btn.active{background:var(--gold-dim);color:var(--ink);border-color:var(--gold-dim);}
+  canvas{background:var(--grid);border:2px solid var(--felt-line);border-radius:10px;display:block;width:100%;margin-top:10px;box-shadow:0 6px 18px var(--shadow);}
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:240px;margin:14px auto 0;}
+  .pad button{font-family:inherit;font-size:24px;padding:14px 0;border-radius:11px;border:1px solid var(--felt-line);background:var(--felt-2);color:var(--cream);cursor:pointer;}
+  .pad button:active{background:var(--felt-line);}
+  .pad .up{grid-column:2;}.pad .left{grid-column:1;grid-row:2;}.pad .down{grid-column:2;grid-row:2;}.pad .right{grid-column:3;grid-row:2;}
+  .hint{text-align:center;font-size:12px;color:var(--gold-dim);margin-top:10px;}
+  .overlay{position:fixed;inset:0;background:rgba(5,25,18,.92);z-index:80;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;}
+  .overlay.show{display:flex;}
+  .overlay h2{font-size:30px;margin:0 0 8px;color:var(--gold);font-variant:small-caps;}
+  .overlay p{margin:0 0 18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="btn" href="index.html">‹ Menu</a>
+    <h1>Slange</h1>
+    <div class="stat" id="score">0</div>
+  </div>
+  <div class="diffs">
+    <button class="btn active" data-speed="180">Langsom</button>
+    <button class="btn" data-speed="110">Normal</button>
+    <button class="btn" data-speed="70">Hurtig</button>
+  </div>
+  <canvas id="cv"></canvas>
+  <div class="pad">
+    <button class="up" id="up">▲</button>
+    <button class="left" id="left">◀</button>
+    <button class="down" id="down">▼</button>
+    <button class="right" id="right">▶</button>
+  </div>
+  <div class="hint">Stryg på banen eller brug knapperne</div>
+</div>
+<div class="overlay" id="overlay"><h2>Game over</h2><p id="ovText"></p><button class="btn solid" id="ovNew" style="font-size:17px;padding:13px 22px;">Spil igen</button></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const cv=$('cv'),ctx=cv.getContext('2d');
+const GRID=20;
+let cell,snake,dir,nextDir,food,score,speed=180,loop,dead,best=+(localStorage.getItem('snakeBest')||0);
+
+function resize(){const w=Math.min($('cv').parentElement.clientWidth,440);cv.width=cv.height=Math.floor(w/GRID)*GRID;cell=cv.width/GRID;draw();}
+function start(){
+  snake=[{x:10,y:10},{x:9,y:10},{x:8,y:10}];dir={x:1,y:0};nextDir=dir;score=0;dead=false;
+  placeFood();$('overlay').classList.remove('show');$('score').textContent='0';
+  clearInterval(loop);loop=setInterval(tick,speed);draw();
+}
+function placeFood(){while(true){food={x:Math.floor(Math.random()*GRID),y:Math.floor(Math.random()*GRID)};if(!snake.some(s=>s.x===food.x&&s.y===food.y))break;}}
+function tick(){
+  dir=nextDir;
+  const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+  if(head.x<0||head.x>=GRID||head.y<0||head.y>=GRID||snake.some(s=>s.x===head.x&&s.y===head.y)){return gameOver();}
+  snake.unshift(head);
+  if(head.x===food.x&&head.y===food.y){score++;$('score').textContent=score;placeFood();}
+  else snake.pop();
+  draw();
+}
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // food
+  ctx.fillStyle='var(--food)';ctx.fillStyle='#e8c468';
+  roundRect(food.x*cell,food.y*cell,cell,cell,cell*0.3);ctx.fill();
+  // snake
+  snake.forEach((s,i)=>{ctx.fillStyle=i===0?'#a8e8c0':'#74d39a';roundRect(s.x*cell+1,s.y*cell+1,cell-2,cell-2,4);ctx.fill();});
+}
+function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function gameOver(){dead=true;clearInterval(loop);if(score>best){best=score;localStorage.setItem('snakeBest',best);}$('ovText').textContent=`${score} point · bedste ${best}`;$('overlay').classList.add('show');}
+
+function turn(nx,ny){if(dir.x===-nx&&dir.y===-ny)return;nextDir={x:nx,y:ny};}
+document.addEventListener('keydown',e=>{const m={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(m){e.preventDefault();turn(m[0],m[1]);}});
+$('up').onclick=()=>turn(0,-1);$('down').onclick=()=>turn(0,1);$('left').onclick=()=>turn(-1,0);$('right').onclick=()=>turn(1,0);
+let sx,sy;
+cv.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
+cv.addEventListener('touchend',e=>{if(sx==null)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.max(Math.abs(dx),Math.abs(dy))<20)return;if(Math.abs(dx)>Math.abs(dy))turn(dx>0?1:-1,0);else turn(0,dy>0?1:-1);sx=sy=null;});
+document.querySelectorAll('.diffs .btn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.diffs .btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');speed=+b.dataset.speed;start();});
+$('ovNew').onclick=start;
+window.addEventListener('resize',resize);
+resize();start();
+</script>
+</body>
+</html>

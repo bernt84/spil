@@ -93,6 +93,7 @@
       <label>Roller i spillet</label>
       <div class="summary" id="summary"></div>
       <div class="roles-list" id="rolesList"></div>
+      <button class="btn block" id="resetRoles" style="margin-top:12px;">Nulstil alle roller</button>
     </div>
 
     <button class="btn block big solid" id="startBtn">Uddel roller</button>
@@ -119,17 +120,29 @@ const $=id=>document.getElementById(id);
 
 const ROLES=[
   {key:'ulv',name:'Varulv',emoji:'🐺',team:'ulv',min:1,desc:'Om natten vælger ulvene sammen et offer at æde. Om dagen skjuler du dig blandt landsbyboerne.'},
+  {key:'ulvekonge',name:'Ulvekonge',emoji:'👑',team:'ulv',min:0,desc:'En varulv hvis stemme tæller dobbelt, når ulvene vælger offer. Optræder som almindelig ulv.'},
+  {key:'ulvunge',name:'Ulveunge',emoji:'🐶',team:'ulv',min:0,desc:'En ung ulv. Bliver den dræbt, må ulvene æde to ofre den følgende nat som hævn.'},
   {key:'landsby',name:'Landsbyboer',emoji:'🧑‍🌾',team:'by',min:0,desc:'Ingen særlig evne. Brug stemme og snak til at finde ulvene.'},
   {key:'seer',name:'Seer',emoji:'🔮',team:'by',min:0,desc:'Hver nat må du pege på én spiller og få at vide af spillederen, om vedkommende er en ulv.'},
-  {key:'heks',name:'Heks',emoji:'🧪',team:'by',min:0,desc:'Du har to drikke: én der redder nattens offer, og én der dræber en spiller. Hver må kun bruges én gang i spillet.'},
+  {key:'heks',name:'Heks',emoji:'🧪',team:'by',min:0,desc:'Du har to drikke: én der redder nattens offer, og én der dræber en spiller. Hver må kun bruges én gang.'},
   {key:'jaeger',name:'Jæger',emoji:'🏹',team:'by',min:0,desc:'Når du dør, må du straks skyde og tage én anden spiller med dig.'},
   {key:'amor',name:'Amor',emoji:'💘',team:'by',min:0,desc:'Første nat udpeger du to forelskede. Dør den ene, dør den anden af sorg.'},
   {key:'pige',name:'Den lille pige',emoji:'👧',team:'by',min:0,desc:'Du må kigge lidt, mens ulvene er vågne — men bliver du opdaget, æder de dig.'},
+  {key:'beskytter',name:'Beskytter',emoji:'🛡️',team:'by',min:0,desc:'Hver nat beskytter du én spiller mod at blive ædt. Ikke samme person to nætter i træk.'},
+  {key:'borgmester',name:'Borgmester',emoji:'🎖️',team:'by',min:0,desc:'Din stemme tæller dobbelt ved dagens afstemning. Alle ved hvem du er.'},
+  {key:'ridder',name:'Ridder',emoji:'⚔️',team:'by',min:0,desc:'Bliver du ædt om natten, dør samtidig den ulv der sidder til venstre for dig.'},
+  {key:'aeldste',name:'Den ældste',emoji:'🧓',team:'by',min:0,desc:'Du overlever det første ulveangreb. Bliver du dræbt af landsbyen, mister alle landsbyboere deres evner.'},
+  {key:'syndebuk',name:'Syndebuk',emoji:'🐐',team:'by',min:0,desc:'Ved stemmelighed er det altid dig der ryger ud — men så bestemmer du, hvem der må stemme næste dag.'},
   {key:'tyv',name:'Tyven',emoji:'🦝',team:'neutral',min:0,desc:'Først i spillet bytter du din rolle med en af to skjulte kort.'},
+  {key:'fløjte',name:'Fløjtespilleren',emoji:'🎏',team:'neutral',min:0,desc:'Hver nat fortryller du to spillere. Vinder alene, hvis alle overlevende er fortryllede.'},
+  {key:'hvidulv',name:'Den hvide ulv',emoji:'🌙',team:'neutral',min:0,desc:'Spiller med ulvene, men vil til sidst stå alene. Hver anden nat må du æde en ulv. Vinder kun, hvis du er sidste overlevende.'},
 ];
 
 let pCount=6;
-let counts={ulv:1,landsby:0,seer:1,heks:0,jaeger:0,amor:0,pige:0,tyv:0};
+let counts={};
+ROLES.forEach(r=>counts[r.key]=0);
+counts.ulv=1;counts.seer=1;
+
 
 function totalAssigned(){return Object.values(counts).reduce((a,b)=>a+b,0);}
 function villagersFill(){
@@ -170,6 +183,7 @@ function renderSetup(){
 }
 $('pMinus').onclick=()=>{if(pCount>4){pCount--;renderSetup();}};
 $('pPlus').onclick=()=>{if(pCount<20){pCount++;renderSetup();}};
+$('resetRoles').onclick=()=>{ROLES.forEach(r=>counts[r.key]=0);counts.ulv=1;renderSetup();};
 
 /* ---- dealing ---- */
 let deck=[], dealIdx=0, revealed=false;

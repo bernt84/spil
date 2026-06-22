@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a3d2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="2048">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a3d2e'/%3E%3Crect x='16' y='16' width='32' height='32' rx='5' fill='%23e8c468'/%3E%3Ctext x='32' y='39' font-size='15' text-anchor='middle' fill='%230a2018' font-family='Georgia'%3E2048%3C/text%3E%3C/svg%3E">
+<title>2048</title>
+<style>
+  :root{
+    --felt:#0a3d2e; --felt-2:#0d4a37; --felt-line:#10573f;
+    --gold:#e8c468; --gold-dim:#b89640;
+    --cream:#f3ead6; --ink:#0a2018;
+    --grid:#093427; --empty:#0c4233;
+    --shadow:rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;touch-action:none;}
+  html,body{margin:0;padding:0;}
+  body{font-family:"Georgia","Times New Roman",serif;background:radial-gradient(ellipse at 50% 0%, var(--felt-2), var(--felt) 75%);color:var(--cream);min-height:100vh;min-height:100dvh;padding:env(safe-area-inset-top) 12px 16px;}
+  .wrap{max-width:460px;margin:0 auto;}
+  .topbar{display:flex;align-items:center;gap:10px;padding:10px 2px 6px;}
+  .topbar h1{flex:1;font-size:20px;margin:0;color:var(--gold);font-variant:small-caps;letter-spacing:1px;}
+  .btn{font-family:inherit;font-size:14px;border:1px solid var(--felt-line);border-radius:9px;padding:8px 11px;cursor:pointer;background:transparent;color:var(--gold);}
+  .btn.solid{background:var(--gold);color:var(--ink);border:none;font-weight:bold;box-shadow:0 2px 0 var(--gold-dim);}
+  .btn:active{transform:translateY(1px);}
+  a.btn{text-decoration:none;display:inline-block;}
+
+  .scores{display:flex;gap:10px;margin:8px 0;}
+  .scorebox{flex:1;background:var(--felt-2);border:1px solid var(--felt-line);border-radius:10px;padding:8px;text-align:center;}
+  .scorebox .lbl{font-size:10px;letter-spacing:2px;color:var(--gold-dim);text-transform:uppercase;}
+  .scorebox .v{font-size:24px;color:var(--gold);font-weight:bold;}
+
+  .grid{background:var(--grid);border-radius:12px;padding:8px;margin-top:10px;position:relative;aspect-ratio:1;box-shadow:0 6px 18px var(--shadow);}
+  .cellbg{position:absolute;background:var(--empty);border-radius:8px;}
+  .tile{position:absolute;display:flex;align-items:center;justify-content:center;border-radius:8px;font-weight:bold;transition:left .12s ease,top .12s ease;font-family:"Georgia",serif;}
+  .tile.pop{animation:pop .15s;}
+  @keyframes pop{0%{transform:scale(.6)}100%{transform:scale(1)}}
+  .hint{text-align:center;font-size:12px;color:var(--gold-dim);margin-top:12px;}
+
+  .overlay{position:absolute;inset:8px;background:rgba(8,37,27,.92);z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;border-radius:10px;}
+  .overlay.show{display:flex;}
+  .overlay h2{font-size:30px;margin:0 0 14px;color:var(--gold);font-variant:small-caps;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="btn" href="index.html">‹ Menu</a>
+    <h1>2048</h1>
+    <button class="btn" id="newBtn">Nyt</button>
+  </div>
+  <div class="scores">
+    <div class="scorebox"><div class="lbl">Point</div><div class="v" id="score">0</div></div>
+    <div class="scorebox"><div class="lbl">Bedste</div><div class="v" id="best">0</div></div>
+  </div>
+  <div class="grid" id="grid">
+    <div class="overlay" id="overlay"><h2 id="ovTitle"></h2><button class="btn solid" id="ovNew" style="font-size:16px;padding:12px 20px;">Spil igen</button></div>
+  </div>
+  <div class="hint">Stryg for at flytte · pile-taster på computer</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const N=4;
+const COLORS={2:'#e8d9b5',4:'#e6cf95',8:'#e8a85f',16:'#e8924a',32:'#e8743a',64:'#e8542a',128:'#e8c468',256:'#e8c054',512:'#e8bb40',1024:'#e6b52c',2048:'#e8c468',4096:'#b69cff',8192:'#7fb7ff'};
+let grid, score, best=+(localStorage.getItem('2048best')||0), over, won;
+
+function init(){
+  grid=Array.from({length:N},()=>Array(N).fill(0));
+  score=0;over=false;won=false;
+  $('overlay').classList.remove('show');
+  addTile();addTile();
+  $('best').textContent=best;
+  render();
+}
+function addTile(){
+  const empty=[];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(!grid[r][c])empty.push([r,c]);
+  if(!empty.length)return;
+  const [r,c]=empty[Math.floor(Math.random()*empty.length)];
+  grid[r][c]=Math.random()<0.9?2:4;
+  grid[r][c]={v:grid[r][c],pop:true};
+}
+function val(x){return typeof x==='object'?x.v:x;}
+
+function render(){
+  const g=$('grid');
+  // clear tiles+bg
+  g.querySelectorAll('.tile,.cellbg').forEach(e=>e.remove());
+  const pad=8;const inner=g.clientWidth-pad*2;const gap=8;const cs=(inner-gap*(N-1))/N;
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const bg=document.createElement('div');bg.className='cellbg';
+    bg.style.width=bg.style.height=cs+'px';
+    bg.style.left=(pad+c*(cs+gap))+'px';bg.style.top=(pad+r*(cs+gap))+'px';
+    g.appendChild(bg);
+  }
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const cell=grid[r][c];if(!cell)continue;
+    const v=val(cell);
+    const t=document.createElement('div');
+    t.className='tile'+(typeof cell==='object'&&cell.pop?' pop':'');
+    t.style.width=t.style.height=cs+'px';
+    t.style.left=(pad+c*(cs+gap))+'px';t.style.top=(pad+r*(cs+gap))+'px';
+    t.style.background=COLORS[v]||'#7fb7ff';
+    t.style.color=v<=4?'#0a2018':'#0a2018';
+    t.style.fontSize=(v<100?cs*0.42:v<1000?cs*0.34:cs*0.26)+'px';
+    t.textContent=v;
+    g.appendChild(t);
+    if(typeof cell==='object')grid[r][c]=cell.v; // settle
+  }
+  $('score').textContent=score;
+}
+
+function slide(row){
+  let arr=row.map(val).filter(x=>x);
+  for(let i=0;i<arr.length-1;i++){
+    if(arr[i]===arr[i+1]){arr[i]*=2;score+=arr[i];if(arr[i]===2048&&!won){won=true;}arr.splice(i+1,1);}
+  }
+  while(arr.length<N)arr.push(0);
+  return arr;
+}
+function move(dir){
+  if(over)return;
+  const before=JSON.stringify(grid.map(row=>row.map(val)));
+  let g=grid.map(row=>row.map(val));
+  if(dir==='left')g=g.map(slide);
+  else if(dir==='right')g=g.map(r=>slide(r.slice().reverse()).reverse());
+  else if(dir==='up'){g=transpose(g).map(slide);g=transpose(g);}
+  else if(dir==='down'){g=transpose(g).map(r=>slide(r.slice().reverse()).reverse());g=transpose(g);}
+  grid=g;
+  if(JSON.stringify(grid)!==before){
+    addTile();
+    if(score>best){best=score;localStorage.setItem('2048best',best);}
+    render();
+    checkEnd();
+  }
+}
+function transpose(g){return g[0].map((_,c)=>g.map(r=>r[c]));}
+function canMove(){
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    if(!grid[r][c])return true;
+    const v=val(grid[r][c]);
+    if(c<N-1&&val(grid[r][c+1])===v)return true;
+    if(r<N-1&&val(grid[r+1][c])===v)return true;
+  }
+  return false;
+}
+function checkEnd(){
+  if(won){$('ovTitle').textContent='2048! 🎉';$('overlay').classList.add('show');won='shown';return;}
+  if(!canMove()){over=true;$('ovTitle').textContent='Spillet er slut';$('overlay').classList.add('show');}
+}
+
+/* input */
+document.addEventListener('keydown',e=>{
+  const k={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down'}[e.key];
+  if(k){e.preventDefault();move(k);}
+});
+let sx,sy;
+const g=$('grid');
+g.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
+g.addEventListener('touchend',e=>{
+  if(sx==null)return;
+  const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<24)return;
+  if(Math.abs(dx)>Math.abs(dy))move(dx>0?'right':'left');else move(dy>0?'down':'up');
+  sx=sy=null;
+});
+$('newBtn').onclick=init;
+$('ovNew').onclick=()=>{if(won==='shown'&&!over){$('overlay').classList.remove('show');return;}init();};
+window.addEventListener('resize',render);
+init();
+</script>
+</body>
+</html>
