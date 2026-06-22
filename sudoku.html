@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a3d2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sudoku">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a3d2e'/%3E%3Ctext x='32' y='46' font-size='34' text-anchor='middle' fill='%23e8c468' font-family='Georgia,serif'%3E9%3C/text%3E%3C/svg%3E">
+<title>Sudoku</title>
+<style>
+  :root{
+    --felt:#0a3d2e; --felt-2:#0d4a37; --felt-line:#10573f;
+    --gold:#e8c468; --gold-dim:#b89640;
+    --cream:#f3ead6; --ink:#0a2018;
+    --red:#c0392b;
+    --grid-bg:#f7f2e6; --given:#1a2e26; --user:#1f6f52;
+    --hl:#d9ead0; --hl-strong:#bfe0b0; --same:#e6dcc0;
+    --shadow:rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Georgia","Times New Roman",serif;
+    background:radial-gradient(ellipse at 50% 0%, var(--felt-2), var(--felt) 75%);
+    color:var(--cream);min-height:100vh;min-height:100dvh;
+    padding:env(safe-area-inset-top) 10px 14px;
+  }
+  .topbar{display:flex;align-items:center;gap:10px;max-width:520px;margin:0 auto;padding:10px 2px 6px;}
+  .topbar h1{flex:1;font-size:20px;margin:0;color:var(--gold);font-variant:small-caps;letter-spacing:1px;}
+  .topbar .stat{font-size:12px;color:var(--gold-dim);text-align:right;line-height:1.3;}
+  .btn{font-family:inherit;font-size:14px;border:1px solid var(--felt-line);border-radius:9px;padding:8px 11px;cursor:pointer;background:transparent;color:var(--gold);}
+  .btn.solid{background:var(--gold);color:var(--ink);border:none;font-weight:bold;box-shadow:0 2px 0 var(--gold-dim);}
+  .btn:active{transform:translateY(1px);}
+  a.btn{text-decoration:none;display:inline-block;}
+
+  .diffs{display:flex;gap:6px;max-width:520px;margin:6px auto 0;}
+  .diffs .btn{flex:1;text-align:center;font-size:13px;padding:9px 4px;}
+  .diffs .btn.active{background:var(--gold-dim);color:var(--ink);border-color:var(--gold-dim);}
+
+  .board{max-width:520px;margin:14px auto 0;aspect-ratio:1;background:var(--grid-bg);border-radius:10px;padding:4px;box-shadow:0 6px 18px var(--shadow);}
+  .grid{display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(9,1fr);width:100%;height:100%;}
+  .cell{
+    display:flex;align-items:center;justify-content:center;
+    font-size:clamp(18px,5.5vw,28px);color:var(--user);
+    border:1px solid #d8cfb8;cursor:pointer;position:relative;background:transparent;
+  }
+  .cell.given{color:var(--given);font-weight:bold;}
+  .cell.hl{background:var(--hl);}
+  .cell.same{background:var(--same);}
+  .cell.sel{background:var(--hl-strong);}
+  .cell.err{color:var(--red);}
+  /* thick 3x3 borders */
+  .cell:nth-child(3n){border-right:2px solid #1a2e26;}
+  .cell:nth-child(9n){border-right:1px solid #d8cfb8;}
+  .grid .cell:nth-child(n+19):nth-child(-n+27),
+  .grid .cell:nth-child(n+46):nth-child(-n+54){border-bottom:2px solid #1a2e26;}
+  .grid .cell:nth-child(-n+9){border-top:2px solid #1a2e26;}
+  .cell:nth-child(9n+1){border-left:2px solid #1a2e26;}
+  .pencil{position:absolute;inset:2px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);font-size:9px;color:#7a8f84;line-height:1;}
+  .pencil span{display:flex;align-items:center;justify-content:center;}
+
+  .pad{max-width:520px;margin:14px auto 0;display:grid;grid-template-columns:repeat(9,1fr);gap:5px;}
+  .pad button{font-family:inherit;font-size:22px;padding:12px 0;border-radius:9px;border:1px solid var(--felt-line);background:var(--felt-2);color:var(--cream);cursor:pointer;}
+  .pad button:active{transform:translateY(1px);}
+  .pad button .left{display:block;font-size:9px;color:var(--gold-dim);margin-top:2px;}
+
+  .tools{max-width:520px;margin:10px auto 0;display:flex;gap:6px;}
+  .tools .btn{flex:1;text-align:center;}
+  .tools .btn.active{background:var(--gold-dim);color:var(--ink);border-color:var(--gold-dim);}
+
+  .overlay{position:fixed;inset:0;background:rgba(5,25,18,.92);z-index:80;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;}
+  .overlay.show{display:flex;}
+  .overlay h2{font-size:32px;margin:0 0 6px;color:var(--gold);font-variant:small-caps;}
+  .overlay p{color:var(--cream);margin:0 0 20px;}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:rgba(7,40,30,.96);border:1px solid var(--gold-dim);color:var(--cream);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:.25s;z-index:70;pointer-events:none;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="btn" href="index.html">‹ Menu</a>
+  <h1>Sudoku</h1>
+  <div class="stat"><div id="time">0:00</div><div id="errs">0 fejl</div></div>
+</div>
+
+<div class="diffs">
+  <button class="btn active" data-diff="let">Let</button>
+  <button class="btn" data-diff="mellem">Mellem</button>
+  <button class="btn" data-diff="svaer">Svær</button>
+  <button class="btn" data-diff="ekspert">Ekspert</button>
+</div>
+
+<div class="board"><div class="grid" id="grid"></div></div>
+
+<div class="tools">
+  <button class="btn" id="pencilBtn">✏️ Noter</button>
+  <button class="btn" id="eraseBtn">⌫ Slet</button>
+  <button class="btn" id="hintBtn">💡 Tip</button>
+  <button class="btn" id="newBtn">Nyt</button>
+</div>
+
+<div class="pad" id="pad"></div>
+
+<div class="overlay" id="overlay">
+  <h2>Løst!</h2>
+  <p id="ovText"></p>
+  <button class="btn solid" id="ovNew" style="font-size:17px;padding:13px 22px;">Nyt spil</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const REMOVE={let:40,mellem:48,svaer:52,ekspert:56};
+let diff='let';
+let solution, puzzle, given, notes, sel=-1, pencilMode=false, errors=0, time=0, timer=null;
+
+/* ---------- generator ---------- */
+function emptyGrid(){return Array.from({length:81},()=>0);}
+function rowOf(i){return Math.floor(i/9);}
+function colOf(i){return i%9;}
+function boxOf(i){return Math.floor(rowOf(i)/3)*3+Math.floor(colOf(i)/3);}
+function valid(g,i,v){
+  const r=rowOf(i),c=colOf(i),b=boxOf(i);
+  for(let k=0;k<81;k++){
+    if(g[k]!==v)continue;
+    if(rowOf(k)===r||colOf(k)===c||boxOf(k)===b)return false;
+  }
+  return true;
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function solveFull(g){
+  const i=g.indexOf(0);
+  if(i===-1)return true;
+  for(const v of shuffle([1,2,3,4,5,6,7,8,9])){
+    if(valid(g,i,v)){g[i]=v;if(solveFull(g))return true;g[i]=0;}
+  }
+  return false;
+}
+// count solutions up to 2 (for uniqueness)
+function countSolutions(g,limit=2){
+  const i=g.indexOf(0);
+  if(i===-1)return 1;
+  let count=0;
+  for(let v=1;v<=9;v++){
+    if(valid(g,i,v)){
+      g[i]=v;
+      count+=countSolutions(g,limit);
+      g[i]=0;
+      if(count>=limit)return count;
+    }
+  }
+  return count;
+}
+function generate(removeCount){
+  const full=emptyGrid();solveFull(full);
+  solution=full.slice();
+  const puz=full.slice();
+  const order=shuffle([...Array(81).keys()]);
+  let removed=0;
+  const deadline=Date.now()+1500; // never spend more than ~1.5s thinning
+  for(const idx of order){
+    if(removed>=removeCount)break;
+    if(Date.now()>deadline)break; // good-enough puzzle, stop early
+    const backup=puz[idx];
+    if(backup===0)continue;
+    puz[idx]=0;
+    const test=puz.slice();
+    if(countSolutions(test,2)!==1){puz[idx]=backup;}  // keep if not unique
+    else removed++;
+  }
+  puzzle=puz;
+  given=puz.map(v=>v!==0);
+  notes=Array.from({length:81},()=>new Set());
+}
+
+/* ---------- game ---------- */
+function newGame(){
+  $('overlay').classList.remove('show');
+  toast('Laver puslespil…');
+  // generate async so toast shows
+  setTimeout(()=>{
+    generate(REMOVE[diff]);
+    sel=-1;errors=0;time=0;$('errs').textContent='0 fejl';
+    clearInterval(timer);timer=setInterval(()=>{time++;$('time').textContent=fmt(time);},1000);
+    $('time').textContent='0:00';
+    render();
+    document.querySelector('.toast').classList.remove('show');
+  },30);
+}
+function fmt(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+
+function render(){
+  const g=$('grid');g.innerHTML='';
+  const selVal=sel>=0?puzzle[sel]:0;
+  for(let i=0;i<81;i++){
+    const el=document.createElement('div');
+    el.className='cell'+(given[i]?' given':'');
+    if(sel>=0){
+      if(i===sel)el.classList.add('sel');
+      else if(rowOf(i)===rowOf(sel)||colOf(i)===colOf(sel)||boxOf(i)===boxOf(sel))el.classList.add('hl');
+      if(selVal&&puzzle[i]===selVal)el.classList.add('same');
+    }
+    if(puzzle[i]!==0){
+      el.textContent=puzzle[i];
+      if(!given[i]&&puzzle[i]!==solution[i])el.classList.add('err');
+    }else if(notes[i].size){
+      const p=document.createElement('div');p.className='pencil';
+      for(let n=1;n<=9;n++){const s=document.createElement('span');s.textContent=notes[i].has(n)?n:'';p.appendChild(s);}
+      el.appendChild(p);
+    }
+    el.onclick=()=>{sel=i;render();};
+    g.appendChild(el);
+  }
+}
+
+function place(v){
+  if(sel<0||given[sel])return;
+  if(pencilMode&&v!==0){
+    if(puzzle[sel]!==0)return;
+    if(notes[sel].has(v))notes[sel].delete(v);else notes[sel].add(v);
+    render();return;
+  }
+  if(v===0){puzzle[sel]=0;notes[sel].clear();render();return;}
+  puzzle[sel]=v;notes[sel].clear();
+  if(v!==solution[sel]){errors++;$('errs').textContent=errors+(errors===1?' fejl':' fejl');}
+  else{
+    // clear that value from notes in peers
+    for(let k=0;k<81;k++){
+      if(rowOf(k)===rowOf(sel)||colOf(k)===colOf(sel)||boxOf(k)===boxOf(sel))notes[k].delete(v);
+    }
+  }
+  render();checkWin();
+}
+function checkWin(){
+  for(let i=0;i<81;i++)if(puzzle[i]!==solution[i])return;
+  clearInterval(timer);
+  $('ovText').textContent=`${fmt(time)} · ${errors} fejl`;
+  $('overlay').classList.add('show');
+}
+function hint(){
+  if(sel<0||given[sel]||puzzle[sel]===solution[sel]){
+    // find first empty/incorrect
+    let target=-1;
+    for(let i=0;i<81;i++)if(!given[i]&&puzzle[i]!==solution[i]){target=i;break;}
+    if(target<0){toast('Alt er udfyldt korrekt');return;}
+    sel=target;
+  }
+  puzzle[sel]=solution[sel];notes[sel].clear();
+  render();checkWin();
+  toast('Felt afsløret');
+}
+
+/* number counts remaining */
+function buildPad(){
+  const pad=$('pad');pad.innerHTML='';
+  for(let n=1;n<=9;n++){
+    const b=document.createElement('button');
+    b.dataset.n=n;b.innerHTML=n;
+    b.onclick=()=>place(n);
+    pad.appendChild(b);
+  }
+}
+
+let toastT;
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1500);}
+
+/* controls */
+document.querySelectorAll('.diffs .btn').forEach(b=>{
+  b.onclick=()=>{document.querySelectorAll('.diffs .btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');diff=b.dataset.diff;newGame();};
+});
+$('pencilBtn').onclick=()=>{pencilMode=!pencilMode;$('pencilBtn').classList.toggle('active',pencilMode);};
+$('eraseBtn').onclick=()=>place(0);
+$('hintBtn').onclick=hint;
+$('newBtn').onclick=newGame;
+$('ovNew').onclick=newGame;
+document.addEventListener('keydown',e=>{
+  if(e.key>='1'&&e.key<='9')place(+e.key);
+  else if(e.key==='Backspace'||e.key==='Delete'||e.key==='0')place(0);
+  else if(sel>=0){
+    if(e.key==='ArrowRight'&&colOf(sel)<8){sel++;render();}
+    if(e.key==='ArrowLeft'&&colOf(sel)>0){sel--;render();}
+    if(e.key==='ArrowDown'&&rowOf(sel)<8){sel+=9;render();}
+    if(e.key==='ArrowUp'&&rowOf(sel)>0){sel-=9;render();}
+  }
+});
+
+buildPad();
+newGame();
+</script>
+</body>
+</html>
