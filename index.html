@@ -774,7 +774,8 @@ $('rm-calc-close').onclick=()=>$('rm-calc').classList.add('hidden');
 })();
 
 /* ---------- BOOT ---------- */
-show(app.screen||'menu');
+// Always start on the menu (games keep their saved state and resume when opened)
+show('menu');
 </script>
 </body>
 </html>
