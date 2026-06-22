@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a3d2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tårnforsvar">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a3d2e'/%3E%3Crect x='24' y='20' width='16' height='28' fill='%23e8c468'/%3E%3Crect x='20' y='16' width='24' height='8' fill='%23e8c468'/%3E%3Crect x='28' y='28' width='8' height='8' fill='%230a2018'/%3E%3C/svg%3E">
+<title>Tårnforsvar</title>
+<style>
+  :root{--felt:#0a3d2e;--felt-2:#0d4a37;--felt-line:#10573f;--gold:#e8c468;--gold-dim:#b89640;--cream:#f3ead6;--ink:#0a2018;--red:#c0392b;--grass:#0f5a40;--path:#9a8252;--shadow:rgba(0,0,0,.4);}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;touch-action:manipulation;}
+  html,body{margin:0;padding:0;}
+  body{font-family:"Georgia",serif;background:radial-gradient(ellipse at 50% 0%, var(--felt-2), var(--felt) 75%);color:var(--cream);min-height:100vh;min-height:100dvh;padding:env(safe-area-inset-top) 8px 14px;}
+  .wrap{max-width:560px;margin:0 auto;}
+  .topbar{display:flex;align-items:center;gap:10px;padding:10px 2px 6px;}
+  .topbar h1{flex:1;font-size:19px;margin:0;color:var(--gold);font-variant:small-caps;letter-spacing:1px;}
+  .btn{font-family:inherit;font-size:14px;border:1px solid var(--felt-line);border-radius:9px;padding:8px 11px;cursor:pointer;background:transparent;color:var(--gold);}
+  .btn.solid{background:var(--gold);color:var(--ink);border:none;font-weight:bold;box-shadow:0 2px 0 var(--gold-dim);}
+  .btn:active{transform:translateY(1px);}
+  .btn:disabled{opacity:.4;}
+  a.btn{text-decoration:none;display:inline-block;}
+  .hud{display:flex;justify-content:space-between;gap:6px;background:var(--felt-2);border:1px solid var(--felt-line);border-radius:10px;padding:8px 10px;margin:6px 0;}
+  .hud .item{text-align:center;flex:1;}
+  .hud .v{font-size:18px;color:var(--gold);font-weight:bold;}
+  .hud .l{font-size:9px;letter-spacing:1px;color:var(--gold-dim);text-transform:uppercase;}
+  canvas{background:var(--grass);border:2px solid var(--felt-line);border-radius:10px;display:block;width:100%;box-shadow:0 6px 18px var(--shadow);}
+  .shop{display:flex;gap:6px;margin-top:10px;}
+  .tower-btn{flex:1;background:var(--felt-2);border:1px solid var(--felt-line);border-radius:10px;padding:8px 4px;text-align:center;cursor:pointer;color:var(--cream);font-family:inherit;}
+  .tower-btn.sel{border-color:var(--gold);background:rgba(232,196,104,.12);}
+  .tower-btn .ic{font-size:22px;}
+  .tower-btn .nm{font-size:11px;margin-top:2px;}
+  .tower-btn .pr{font-size:11px;color:var(--gold);}
+  .controls{display:flex;gap:8px;margin-top:10px;}
+  .controls .btn{flex:1;text-align:center;}
+  .hint{text-align:center;font-size:12px;color:var(--gold-dim);margin-top:8px;min-height:16px;}
+  .overlay{position:fixed;inset:0;background:rgba(5,25,18,.93);z-index:80;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;}
+  .overlay.show{display:flex;}
+  .overlay h2{font-size:30px;margin:0 0 8px;color:var(--gold);font-variant:small-caps;}
+  .overlay.lose h2{color:var(--red);}
+  .overlay p{margin:0 0 18px;}
+  .selinfo{background:var(--felt-2);border:1px solid var(--felt-line);border-radius:10px;padding:10px;margin-top:10px;display:none;}
+  .selinfo.show{display:block;}
+  .selinfo .row{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .selinfo .row+.row{margin-top:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="btn" href="index.html">‹ Menu</a>
+    <h1>Tårnforsvar</h1>
+  </div>
+  <div class="hud">
+    <div class="item"><div class="v" id="lives">20</div><div class="l">❤ Liv</div></div>
+    <div class="item"><div class="v" id="gold">100</div><div class="l">💰 Guld</div></div>
+    <div class="item"><div class="v" id="wave">0</div><div class="l">Bølge</div></div>
+    <div class="item"><div class="v" id="score">0</div><div class="l">Point</div></div>
+  </div>
+  <canvas id="cv"></canvas>
+  <div class="shop" id="shop"></div>
+  <div class="selinfo" id="selinfo"></div>
+  <div class="controls">
+    <button class="btn solid" id="startWave">Start bølge</button>
+    <button class="btn" id="speedBtn">⏩ 1×</button>
+    <button class="btn" id="newBtn">Nyt spil</button>
+  </div>
+  <div class="hint" id="hint">Vælg et tårn og tryk på græsset for at placere det</div>
+</div>
+<div class="overlay" id="overlay"><h2 id="ovTitle"></h2><p id="ovText"></p><button class="btn solid" id="ovNew" style="font-size:17px;padding:13px 22px;">Spil igen</button></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const cv=$('cv'),ctx=cv.getContext('2d');
+const COLS=12,ROWS=9;
+// path as grid cells (col,row), enemies walk centers
+const PATH=[[0,1],[1,1],[2,1],[3,1],[4,1],[4,2],[4,3],[4,4],[3,4],[2,4],[1,4],[1,5],[1,6],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7],[7,7],[7,6],[7,5],[7,4],[7,3],[8,3],[9,3],[10,3],[10,4],[10,5],[11,5]];
+const pathSet=new Set(PATH.map(p=>p[0]+','+p[1]));
+
+const TOWERS={
+  pil:{name:'Pil',icon:'🏹',cost:50,range:2.4,dmg:8,rate:35,color:'#74d39a',splash:0,slow:0},
+  kanon:{name:'Kanon',icon:'💣',cost:90,range:2.0,dmg:22,rate:80,color:'#e8a85f',splash:1.1,slow:0},
+  is:{name:'Is',icon:'❄️',cost:70,range:2.2,dmg:4,rate:45,color:'#7fb7ff',splash:0,slow:0.5},
+  magi:{name:'Magi',icon:'✨',cost:130,range:2.8,dmg:30,rate:60,color:'#b69cff',splash:0,slow:0},
+};
+
+let cell,grid,towers,enemies,bullets,lives,gold,wave,score,selTower,selPlaced,running,spawnQueue,spawnTimer,speed,gameOver,inWave;
+
+function resize(){
+  const w=Math.min(cv.parentElement.clientWidth,544);
+  cell=Math.floor(w/COLS);
+  cv.width=cell*COLS;cv.height=cell*ROWS;
+  draw();
+}
+function init(){
+  grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+  towers=[];enemies=[];bullets=[];
+  lives=20;gold=100;wave=0;score=0;selTower=null;selPlaced=null;running=true;
+  spawnQueue=[];spawnTimer=0;speed=1;gameOver=false;inWave=false;
+  $('overlay').classList.remove('show');
+  updHud();renderShop();updSelInfo();
+  $('startWave').disabled=false;$('hint').textContent='Vælg et tårn og tryk på græsset for at placere det';
+  resize();
+  lastT=0;requestAnimationFrame(loop);
+}
+function updHud(){$('lives').textContent=lives;$('gold').textContent=gold;$('wave').textContent=wave;$('score').textContent=score;}
+function renderShop(){
+  const shop=$('shop');shop.innerHTML='';
+  for(const k in TOWERS){const t=TOWERS[k];
+    const b=document.createElement('div');b.className='tower-btn'+(selTower===k?' sel':'');
+    b.innerHTML=`<div class="ic">${t.icon}</div><div class="nm">${t.name}</div><div class="pr">${t.cost}💰</div>`;
+    b.onclick=()=>{selTower=selTower===k?null:k;selPlaced=null;renderShop();updSelInfo();$('hint').textContent=selTower?'Tryk på græsset for at placere':'';};
+    shop.appendChild(b);
+  }
+}
+function updSelInfo(){
+  const box=$('selinfo');
+  if(selPlaced){
+    const t=selPlaced;const def=TOWERS[t.type];
+    const upCost=Math.round(def.cost*0.8*t.level);
+    box.classList.add('show');
+    box.innerHTML=`<div class="row"><b>${def.icon} ${def.name} · niveau ${t.level}</b><span>Skade ${Math.round(t.dmg)}</span></div>
+      <div class="row">
+        <button class="btn" id="upBtn" ${gold<upCost?'disabled':''}>Opgradér (${upCost}💰)</button>
+        <button class="btn" id="sellBtn">Sælg (${Math.round(t.spent*0.6)}💰)</button>
+      </div>`;
+    $('upBtn').onclick=()=>{if(gold>=upCost){gold-=upCost;t.spent+=upCost;t.level++;t.dmg*=1.5;t.range+=0.2;t.spent+=0;updHud();updSelInfo();}};
+    $('sellBtn').onclick=()=>{gold+=Math.round(t.spent*0.6);grid[t.row][t.col]=null;towers=towers.filter(x=>x!==t);selPlaced=null;updHud();updSelInfo();};
+  }else box.classList.remove('show');
+}
+function cellAt(px,py){return [Math.floor(px/cell),Math.floor(py/cell)];}
+cv.addEventListener('click',e=>{
+  const rect=cv.getBoundingClientRect();
+  const px=(e.clientX-rect.left)*(cv.width/rect.width),py=(e.clientY-rect.top)*(cv.height/rect.height);
+  const [c,r]=cellAt(px,py);
+  if(c<0||c>=COLS||r<0||r>=ROWS)return;
+  // tap existing tower -> select it
+  const existing=towers.find(t=>t.col===c&&t.row===r);
+  if(existing){selPlaced=existing;selTower=null;renderShop();updSelInfo();return;}
+  // place new
+  if(selTower){
+    if(pathSet.has(c+','+r)){$('hint').textContent='Kan ikke bygge på stien';return;}
+    const def=TOWERS[selTower];
+    if(gold<def.cost){$('hint').textContent='Ikke nok guld';return;}
+    gold-=def.cost;
+    const t={type:selTower,col:c,row:r,level:1,dmg:def.dmg,range:def.range,cool:0,spent:def.cost};
+    towers.push(t);grid[r][c]=t;updHud();$('hint').textContent='';
+  }else{selPlaced=null;updSelInfo();}
+});
+
+function startWave(){
+  if(inWave)return;
+  wave++;inWave=true;$('startWave').disabled=true;
+  const count=5+wave*2;
+  const hp=18+wave*wave*2.2;
+  const spd=0.018+wave*0.0007;
+  spawnQueue=[];
+  for(let i=0;i<count;i++){
+    const boss=(wave%5===0&&i===count-1);
+    spawnQueue.push({hp:boss?hp*8:hp,maxhp:boss?hp*8:hp,spd:boss?spd*0.6:spd,reward:boss?40:4+Math.floor(wave/2),boss});
+  }
+  spawnTimer=0;updHud();
+}
+function spawn(){
+  if(!spawnQueue.length)return;
+  const e=spawnQueue.shift();
+  enemies.push({...e,seg:0,t:0,x:PATH[0][0],y:PATH[0][1],slowT:0});
+}
+function enemyPos(e){return [(e.x+0.5)*cell,(e.y+0.5)*cell];}
+
+let lastT=0;
+function loop(ts){
+  if(gameOver){return;}
+  const dt=Math.min(50,ts-lastT);lastT=ts;
+  for(let s=0;s<speed;s++)update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+function update(dt){
+  // spawn
+  if(inWave&&spawnQueue.length){spawnTimer+=dt;if(spawnTimer>520){spawnTimer=0;spawn();}}
+  // enemies move along PATH
+  for(const e of enemies){
+    let sp=e.spd;if(e.slowT>0){e.slowT-=dt;sp*=0.5;}
+    e.t+=sp*dt;
+    while(e.t>=1&&e.seg<PATH.length-1){e.t-=1;e.seg++;}
+    const a=PATH[e.seg],b=PATH[Math.min(e.seg+1,PATH.length-1)];
+    e.x=a[0]+(b[0]-a[0])*e.t;e.y=a[1]+(b[1]-a[1])*e.t;
+    if(e.seg>=PATH.length-1){e.dead=true;lives--;updHud();if(lives<=0)return lose();}
+  }
+  enemies=enemies.filter(e=>!e.dead);
+  // towers fire
+  for(const t of towers){
+    t.cool-=dt*0.06;
+    if(t.cool>0)continue;
+    const def=TOWERS[t.type];
+    const tx=(t.col+0.5)*cell,ty=(t.row+0.5)*cell;
+    // target the furthest-along enemy in range
+    let target=null,bestSeg=-1;
+    for(const e of enemies){
+      const [ex,ey]=enemyPos(e);
+      const d=Math.hypot(ex-tx,ey-ty);
+      if(d<=t.range*cell){const prog=e.seg+e.t;if(prog>bestSeg){bestSeg=prog;target=e;}}
+    }
+    if(target){
+      const rate=TOWERS[t.type].rate;
+      t.cool=rate/(1+(t.level-1)*0.15);
+      bullets.push({x:tx,y:ty,target,dmg:t.dmg,type:t.type,speed:0.5*cell});
+    }
+  }
+  // bullets
+  for(const b of bullets){
+    if(b.target.dead){b.dead=true;continue;}
+    const [ex,ey]=enemyPos(b.target);
+    const dx=ex-b.x,dy=ey-b.y,d=Math.hypot(dx,dy);
+    if(d<8){
+      hit(b);b.dead=true;
+    }else{b.x+=dx/d*b.speed*dt*0.06;b.y+=dy/d*b.speed*dt*0.06;}
+  }
+  bullets=bullets.filter(b=>!b.dead);
+  // wave clear
+  if(inWave&&!spawnQueue.length&&!enemies.length){
+    inWave=false;$('startWave').disabled=false;gold+=15+wave*3;updHud();
+    $('hint').textContent=`Bølge ${wave} klaret! +${15+wave*3}💰`;
+  }
+}
+function hit(b){
+  const def=TOWERS[b.type];
+  const apply=(e,dmg)=>{e.hp-=dmg;if(def.slow)e.slowT=600;if(e.hp<=0&&!e.dead){e.dead=true;gold+=e.reward;score+=e.boss?50:10;updHud();}};
+  if(def.splash){
+    const [bx,by]=enemyPos(b.target);
+    for(const e of enemies){const [ex,ey]=enemyPos(e);if(Math.hypot(ex-bx,ey-by)<=def.splash*cell)apply(e,b.dmg);}
+  }else apply(b.target,b.dmg);
+  enemies=enemies.filter(e=>!e.dead);
+}
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // grass grid
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    ctx.fillStyle=pathSet.has(c+','+r)?'#9a8252':((r+c)%2?'#0f5a40':'#116246');
+    ctx.fillRect(c*cell,r*cell,cell,cell);
+  }
+  // path border highlight start/end
+  const s=PATH[0],en=PATH[PATH.length-1];
+  ctx.fillStyle='rgba(232,196,104,.25)';ctx.fillRect(s[0]*cell,s[1]*cell,cell,cell);
+  ctx.fillStyle='rgba(192,57,43,.3)';ctx.fillRect(en[0]*cell,en[1]*cell,cell,cell);
+  // range of selected placed tower
+  if(selPlaced){const t=selPlaced;ctx.beginPath();ctx.arc((t.col+0.5)*cell,(t.row+0.5)*cell,t.range*cell,0,7);ctx.fillStyle='rgba(232,196,104,.12)';ctx.fill();}
+  // towers
+  for(const t of towers){const def=TOWERS[t.type];const x=(t.col+0.5)*cell,y=(t.row+0.5)*cell;
+    ctx.fillStyle=def.color;ctx.beginPath();ctx.arc(x,y,cell*0.34,0,7);ctx.fill();
+    ctx.font=`${cell*0.5}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(def.icon,x,y+1);
+    if(t.level>1){ctx.fillStyle='var(--gold)';ctx.fillStyle='#e8c468';ctx.font=`bold ${cell*0.28}px serif`;ctx.fillText('★'.repeat(Math.min(3,t.level-1)),x,y-cell*0.42);}
+  }
+  // enemies
+  for(const e of enemies){const [x,y]=enemyPos(e);const rad=e.boss?cell*0.36:cell*0.26;
+    ctx.fillStyle=e.boss?'#8e2f2f':'#c0392b';ctx.beginPath();ctx.arc(x,y,rad,0,7);ctx.fill();
+    if(e.slowT>0){ctx.strokeStyle='#7fb7ff';ctx.lineWidth=2;ctx.stroke();}
+    // hp bar
+    const w=rad*2;ctx.fillStyle='#000';ctx.fillRect(x-w/2,y-rad-7,w,4);
+    ctx.fillStyle='#74d39a';ctx.fillRect(x-w/2,y-rad-7,w*Math.max(0,e.hp/e.maxhp),4);
+  }
+  // bullets
+  for(const b of bullets){ctx.fillStyle='#f3ead6';ctx.beginPath();ctx.arc(b.x,b.y,cell*0.08,0,7);ctx.fill();}
+}
+function lose(){gameOver=true;$('ovTitle').textContent='Basen er faldet';$('ovText').textContent=`Du nåede bølge ${wave} · ${score} point`;$('overlay').className='overlay lose show';}
+
+$('startWave').onclick=startWave;
+$('speedBtn').onclick=()=>{speed=speed===1?2:speed===2?3:1;$('speedBtn').textContent='⏩ '+speed+'×';};
+$('newBtn').onclick=init;$('ovNew').onclick=init;
+window.addEventListener('resize',resize);
+init();
+</script>
+</body>
+</html>

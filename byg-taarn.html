@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a3d2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Byg tårn">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a3d2e'/%3E%3Crect x='22' y='36' width='20' height='12' fill='%23e8c468'/%3E%3Crect x='24' y='24' width='16' height='12' fill='%2374d39a'/%3E%3Crect x='26' y='14' width='12' height='10' fill='%237fb7ff'/%3E%3C/svg%3E">
+<title>Byg tårn</title>
+<style>
+  :root{--felt:#0a3d2e;--felt-2:#0d4a37;--felt-line:#10573f;--gold:#e8c468;--gold-dim:#b89640;--cream:#f3ead6;--ink:#0a2018;--red:#c0392b;--sky:#0a3d2e;--shadow:rgba(0,0,0,.4);}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;touch-action:manipulation;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;}
+  body{font-family:"Georgia",serif;background:radial-gradient(ellipse at 50% 0%, var(--felt-2), var(--felt) 75%);color:var(--cream);height:100vh;height:100dvh;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 8px calc(8px + env(safe-area-inset-bottom));}
+  .topbar{display:flex;align-items:center;gap:10px;max-width:480px;margin:0 auto;width:100%;padding:8px 2px 4px;}
+  .topbar h1{flex:1;font-size:18px;margin:0;color:var(--gold);font-variant:small-caps;letter-spacing:1px;}
+  .topbar .stat{font-size:13px;color:var(--gold-dim);text-align:right;line-height:1.3;}
+  .btn{font-family:inherit;font-size:14px;border:1px solid var(--felt-line);border-radius:9px;padding:7px 10px;cursor:pointer;background:transparent;color:var(--gold);}
+  .btn.solid{background:var(--gold);color:var(--ink);border:none;font-weight:bold;}
+  .btn:active{transform:translateY(1px);}
+  a.btn{text-decoration:none;display:inline-block;}
+  .stage{flex:1;max-width:480px;margin:6px auto 0;width:100%;position:relative;min-height:0;}
+  canvas{background:linear-gradient(180deg,#0c4a38,#08251b);border:2px solid var(--felt-line);border-radius:10px;display:block;width:100%;height:100%;box-shadow:0 6px 18px var(--shadow);}
+  .hint{text-align:center;font-size:13px;color:var(--gold-dim);margin-top:8px;min-height:18px;}
+  .overlay{position:fixed;inset:0;background:rgba(5,25,18,.93);z-index:80;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;}
+  .overlay.show{display:flex;}
+  .overlay h2{font-size:30px;margin:0 0 8px;color:var(--gold);font-variant:small-caps;}
+  .overlay p{margin:0 0 18px;}
+  .tapcatch{position:absolute;inset:0;z-index:2;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="btn" href="index.html">‹ Menu</a>
+  <h1>Byg tårn</h1>
+  <div class="stat"><div id="height">0 etager</div><div id="best">bedste 0</div></div>
+</div>
+<div class="stage">
+  <canvas id="cv"></canvas>
+  <div class="tapcatch" id="tap"></div>
+</div>
+<div class="hint" id="hint">Tryk for at slippe klodsen oven på tårnet</div>
+<div class="overlay" id="overlay"><h2 id="ovTitle">Tårnet væltede</h2><p id="ovText"></p><button class="btn solid" id="ovNew" style="font-size:17px;padding:13px 22px;">Spil igen</button></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const cv=$('cv'),ctx=cv.getContext('2d');
+const COLORS=['#74d39a','#7fb7ff','#e8c468','#e88','#b69cff','#5fd0d0','#e8a85f','#e85d8a'];
+let W,H,blocks,current,baseW,blockH,speed,dir,score,best=+(localStorage.getItem('towerBest')||0),over,scrollY,combo;
+
+function resize(){
+  const st=document.querySelector('.stage');
+  cv.width=st.clientWidth;cv.height=st.clientHeight;
+  W=cv.width;H=cv.height;
+  blockH=Math.max(22,H*0.06);
+  if(!blocks)start();else draw();
+}
+function start(){
+  baseW=W*0.42;
+  blocks=[];
+  // base block centered
+  blocks.push({x:W/2-baseW/2,w:baseW,color:COLORS[0]});
+  score=0;over=false;scrollY=0;combo=0;
+  speed=W*0.012;dir=1;
+  spawn();
+  $('overlay').classList.remove('show');$('best').textContent='bedste '+best;
+  updHud();$('hint').textContent='Tryk for at slippe klodsen';
+  lastT=0;requestAnimationFrame(loop);
+}
+function spawn(){
+  const top=blocks[blocks.length-1];
+  current={x:0,w:top.w,color:COLORS[blocks.length%COLORS.length],y:0};
+  dir=Math.random()<0.5?1:-1;
+  current.x=dir>0?0:W-current.w;
+  speed=(W*0.011)+blocks.length*W*0.0004; // speeds up
+}
+function updHud(){$('height').textContent=score+' etager';}
+function blockY(i){
+  // bottom block sits at bottom; each block stacks up
+  return H-blockH-(i*blockH)+scrollY;
+}
+let lastT=0;
+function loop(ts){
+  if(over)return;
+  const dt=Math.min(50,ts-lastT);lastT=ts;
+  // move current
+  current.x+=dir*speed*(dt/16);
+  if(current.x<=0){current.x=0;dir=1;}
+  if(current.x+current.w>=W){current.x=W-current.w;dir=-1;}
+  draw();
+  requestAnimationFrame(loop);
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // placed blocks
+  blocks.forEach((b,i)=>{
+    const y=blockY(i);
+    if(y>H||y<-blockH)return;
+    drawBlock(b.x,y,b.w,b.color);
+  });
+  // current moving block on top
+  if(current&&!over){
+    const y=blockY(blocks.length);
+    drawBlock(current.x,y,current.w,current.color,true);
+  }
+}
+function drawBlock(x,y,w,color,moving){
+  ctx.fillStyle=color;
+  ctx.fillRect(x,y,w,blockH-2);
+  ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(x,y,w,4);
+  ctx.fillStyle='rgba(0,0,0,.18)';ctx.fillRect(x,y+blockH-6,w,4);
+  if(moving){ctx.strokeStyle='rgba(232,196,104,.6)';ctx.lineWidth=2;ctx.strokeRect(x,y,w,blockH-2);}
+}
+function drop(){
+  if(over||!current)return;
+  const top=blocks[blocks.length-1];
+  const left=Math.max(current.x,top.x);
+  const right=Math.min(current.x+current.w,top.x+top.w);
+  const overlap=right-left;
+  if(overlap<=0){return lose();}
+  // perfect-ish bonus
+  const off=Math.abs(current.x-top.x);
+  if(off<W*0.012){combo++;}else combo=0;
+  const newBlock={x:left,w:overlap,color:current.color};
+  blocks.push(newBlock);
+  score++;
+  if(score>best){best=score;localStorage.setItem('towerBest',best);$('best').textContent='bedste '+best;}
+  updHud();
+  if(combo>=2)$('hint').textContent='Perfekt! Combo ×'+combo;else $('hint').textContent='';
+  // scroll up so tower stays visible: keep newest ~middle
+  const desired=blocks.length*blockH;
+  if(desired>H*0.55){scrollY+=blockH;}
+  spawn();
+}
+function lose(){
+  over=true;
+  $('ovTitle').textContent='Tårnet væltede';
+  $('ovText').textContent=`${score} etager${score>=best?' · ny rekord!':''}`;
+  $('overlay').classList.add('show');
+}
+$('tap').onclick=drop;
+document.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();drop();}});
+$('ovNew').onclick=start;
+window.addEventListener('resize',resize);
+resize();
+</script>
+</body>
+</html>

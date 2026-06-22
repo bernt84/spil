@@ -1,5 +1,5 @@
 /* Spasser Vest — service worker */
-const CACHE = 'kortspil-v19';
+const CACHE = 'kortspil-v20';
 const ASSETS = [
   './',
   './index.html',
@@ -24,7 +24,8 @@ const ASSETS = [
   './reversi.html',
   './dam.html',
   './moelle.html',
-  './taarnforsvar.html'
+  './taarnforsvar.html',
+  './byg-taarn.html'
 ];
 
 self.addEventListener('install', e => {
