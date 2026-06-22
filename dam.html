@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a3d2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dam">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a3d2e'/%3E%3Ccircle cx='32' cy='32' r='16' fill='%23c0392b'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%23e0705f'/%3E%3C/svg%3E">
+<title>Dam</title>
+<style>
+  :root{--felt:#0a3d2e;--felt-2:#0d4a37;--felt-line:#10573f;--gold:#e8c468;--gold-dim:#b89640;--cream:#f3ead6;--ink:#0a2018;--light:#e8d9b5;--dark:#3e6b54;--red:#c0392b;--shadow:rgba(0,0,0,.4);}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;}
+  html,body{margin:0;padding:0;}
+  body{font-family:"Georgia",serif;background:radial-gradient(ellipse at 50% 0%, var(--felt-2), var(--felt) 75%);color:var(--cream);min-height:100vh;min-height:100dvh;padding:env(safe-area-inset-top) 12px 16px;}
+  .wrap{max-width:480px;margin:0 auto;}
+  .topbar{display:flex;align-items:center;gap:10px;padding:10px 2px 6px;}
+  .topbar h1{flex:1;font-size:20px;margin:0;color:var(--gold);font-variant:small-caps;letter-spacing:1px;}
+  .btn{font-family:inherit;font-size:14px;border:1px solid var(--felt-line);border-radius:9px;padding:8px 11px;cursor:pointer;background:transparent;color:var(--gold);}
+  .btn.solid{background:var(--gold);color:var(--ink);border:none;font-weight:bold;}
+  .btn:active{transform:translateY(1px);}
+  a.btn{text-decoration:none;display:inline-block;}
+  .seg{display:flex;border:1px solid var(--felt-line);border-radius:10px;overflow:hidden;margin:8px 0;}
+  .seg button{flex:1;font-family:inherit;background:transparent;color:var(--cream);border:none;padding:10px 4px;cursor:pointer;font-size:13px;}
+  .seg button.active{background:var(--gold);color:var(--ink);font-weight:bold;}
+  .turn{text-align:center;font-size:15px;color:var(--gold);min-height:22px;margin:6px 0;}
+  .board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);aspect-ratio:1;border-radius:8px;overflow:hidden;border:3px solid #08251b;box-shadow:0 6px 18px var(--shadow);}
+  .sq{position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .sq.light{background:var(--light);}.sq.dark{background:var(--dark);}
+  .sq.sel::after{content:"";position:absolute;inset:0;background:var(--gold);opacity:.4;}
+  .sq.move::before{content:"";position:absolute;width:30%;height:30%;border-radius:50%;background:rgba(232,196,104,.6);z-index:2;}
+  .pc{width:74%;height:74%;border-radius:50%;z-index:1;display:flex;align-items:center;justify-content:center;font-size:60%;}
+  .pc.r{background:radial-gradient(circle at 35% 30%,#e0705f,var(--red));}
+  .pc.w{background:radial-gradient(circle at 35% 30%,#fff,#cfc4a6);}
+  .pc.king::after{content:"♛";color:rgba(0,0,0,.55);font-size:150%;}
+  .controls{margin-top:14px;}
+  .overlay{position:fixed;inset:0;background:rgba(5,25,18,.92);z-index:80;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;}
+  .overlay.show{display:flex;}
+  .overlay h2{font-size:30px;margin:0 0 8px;color:var(--gold);font-variant:small-caps;}
+  .overlay p{margin:0 0 18px;}
+  .hint{text-align:center;font-size:12px;color:var(--gold-dim);margin-top:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="btn" href="index.html">‹ Menu</a>
+    <h1>Dam</h1>
+  </div>
+  <div class="seg" id="modeSeg">
+    <button data-mode="ai" class="active">Mod computer</button>
+    <button data-mode="two">To spillere</button>
+  </div>
+  <div class="seg" id="lvlSeg">
+    <button data-lvl="2">Let</button>
+    <button data-lvl="4" class="active">Mellem</button>
+    <button data-lvl="6">Svær</button>
+  </div>
+  <div class="turn" id="turn">Din tur (rød)</div>
+  <div class="board" id="board"></div>
+  <div class="hint">Slag er tvunget. Brikker bliver dame i bagerste række.</div>
+  <div class="controls"><button class="btn solid" id="newBtn" style="width:100%;padding:13px;">Nyt spil</button></div>
+</div>
+<div class="overlay" id="overlay"><h2 id="ovTitle"></h2><p id="ovText"></p><button class="btn solid" id="ovNew" style="font-size:17px;padding:13px 22px;">Spil igen</button></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const N=8;
+// pieces: {c:'r'|'w', king:bool}; red moves up (row decreasing), white moves down
+let board,turn,mode='ai',depth=4,human='r',over,sel,legalForSel,busy;
+
+function init(){
+  board=Array.from({length:N},()=>Array(N).fill(null));
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    if((r+c)%2===1){
+      if(r<3)board[r][c]={c:'w',king:false};
+      else if(r>4)board[r][c]={c:'r',king:false};
+    }
+  }
+  turn='r';over=false;sel=null;busy=false;render();turnLabel();
+  if(mode==='ai'&&turn!==human)setTimeout(aiMove,300);
+}
+function inb(r,c){return r>=0&&r<N&&c>=0&&c<N;}
+function dirsFor(p){return p.king?[[1,1],[1,-1],[-1,1],[-1,-1]]:p.c==='r'?[[-1,1],[-1,-1]]:[[1,1],[1,-1]];}
+
+// generate all legal moves for color; if any captures exist, only captures are legal (forced capture)
+function genMoves2(bd,color){
+  const caps=[],steps=[];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const p=bd[r][c];if(!p||p.c!==color)continue;
+    const seqs=[];
+    findCaps(bd,r,c,p,[r,c],[],[],seqs);
+    for(const s of seqs)caps.push({from:[r,c],path:s.path,caps:s.caps});
+    for(const[dr,dc]of dirsFor(p)){const nr=r+dr,nc=c+dc;if(inb(nr,nc)&&!bd[nr][nc])steps.push({from:[r,c],path:[[nr,nc]],caps:[]});}
+  }
+  return caps.length?caps:steps;
+}
+function findCaps(bd,r,c,p,from,path,capped,out){
+  let extended=false;
+  for(const[dr,dc]of dirsFor(p)){
+    const mr=r+dr,mc=c+dc,lr=r+2*dr,lc=c+2*dc;
+    if(inb(lr,lc)&&bd[mr][mc]&&bd[mr][mc].c!==p.c&&!bd[lr][lc]&&!capped.some(x=>x[0]===mr&&x[1]===mc)){
+      const nb=bd.map(row=>row.slice());nb[lr][lc]={...p};nb[r][c]=null;nb[mr][mc]=null;
+      let np=nb[lr][lc];
+      if(!np.king&&((np.c==='r'&&lr===0)||(np.c==='w'&&lr===N-1)))np.king=true;
+      extended=true;
+      findCaps(nb,lr,lc,np,from,[...path,[lr,lc]],[...capped,[mr,mc]],out);
+    }
+  }
+  if(!extended&&path.length)out.push({path,caps:capped});
+}
+function applyMove(bd,m){
+  const nb=bd.map(row=>row.slice());
+  const [fr,fc]=m.from;const p={...nb[fr][fc]};nb[fr][fc]=null;
+  m.caps.forEach(([cr,cc])=>nb[cr][cc]=null);
+  const [tr,tc]=m.path[m.path.length-1];
+  if(!p.king&&((p.c==='r'&&tr===0)||(p.c==='w'&&tr===N-1)))p.king=true;
+  nb[tr][tc]=p;
+  return nb;
+}
+
+function render(){
+  const b=$('board');b.innerHTML='';
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const sq=document.createElement('div');sq.className='sq '+((r+c)%2?'dark':'light');
+    const p=board[r][c];
+    if(p){const d=document.createElement('div');d.className='pc '+p.c+(p.king?' king':'');sq.appendChild(d);}
+    if(sel&&sel[0]===r&&sel[1]===c)sq.classList.add('sel');
+    if(sel&&legalForSel){const mv=legalForSel.find(m=>m.path[m.path.length-1][0]===r&&m.path[m.path.length-1][1]===c);if(mv)sq.classList.add('move');}
+    sq.onclick=()=>onSq(r,c);
+    b.appendChild(sq);
+  }
+}
+function turnLabel(){$('turn').textContent=over?'':mode==='ai'?(turn===human?'Din tur (rød)':'Computeren tænker…'):(turn==='r'?'Rød i tur':'Hvid i tur');}
+function onSq(r,c){
+  if(over||busy)return;
+  if(mode==='ai'&&turn!==human)return;
+  const all=genMoves2(board,turn);
+  const p=board[r][c];
+  if(p&&p.c===turn){sel=[r,c];legalForSel=all.filter(m=>m.from[0]===r&&m.from[1]===c);render();return;}
+  if(sel&&legalForSel){
+    const mv=legalForSel.find(m=>m.path[m.path.length-1][0]===r&&m.path[m.path.length-1][1]===c);
+    if(mv){board=applyMove(board,mv);sel=null;legalForSel=null;afterMove();return;}
+  }
+  sel=null;legalForSel=null;render();
+}
+function afterMove(){
+  turn=turn==='r'?'w':'r';render();
+  if(checkEnd())return;
+  turnLabel();
+  if(mode==='ai'&&turn!==human){busy=true;setTimeout(aiMove,250);}
+}
+function checkEnd(){
+  if(!genMoves2(board,turn).length){
+    over=true;const win=turn==='r'?'Hvid':'Rød';
+    $('ovTitle').textContent=win+' vinder!';$('ovText').textContent='Modstanderen kan ikke trække.';$('overlay').classList.add('show');render();return true;
+  }
+  return false;
+}
+function evalBoard(bd,me){
+  const opp=me==='r'?'w':'r';let s=0;
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const p=bd[r][c];if(!p)continue;
+    let v=p.king?18:8;
+    // advance bonus toward promotion
+    if(!p.king)v+=p.c==='r'?(N-1-r)*0.4:r*0.4;
+    s+=(p.c===me?1:-1)*v;}
+  return s;
+}
+function minimax(bd,who,me,d,alpha,beta){
+  const moves=genMoves2(bd,who);
+  if(d===0||!moves.length){
+    if(!moves.length)return{score:who===me?-10000:10000};
+    return{score:evalBoard(bd,me)};
+  }
+  let best=null;
+  if(who===me){let val=-Infinity;for(const m of moves){const nb=applyMove(bd,m);const sc=minimax(nb,who==='r'?'w':'r',me,d-1,alpha,beta).score;if(sc>val){val=sc;best=m;}alpha=Math.max(alpha,val);if(beta<=alpha)break;}return{score:val,move:best};}
+  else{let val=Infinity;for(const m of moves){const nb=applyMove(bd,m);const sc=minimax(nb,who==='r'?'w':'r',me,d-1,alpha,beta).score;if(sc<val){val=sc;best=m;}beta=Math.min(beta,val);if(beta<=alpha)break;}return{score:val,move:best};}
+}
+function aiMove(){
+  const res=minimax(board,turn,turn,depth,-Infinity,Infinity);
+  busy=false;
+  if(res.move){board=applyMove(board,res.move);afterMove();}
+  else checkEnd();
+}
+$('modeSeg').onclick=e=>{const b=e.target.closest('button');if(!b)return;mode=b.dataset.mode;[...$('modeSeg').children].forEach(x=>x.classList.toggle('active',x===b));$('lvlSeg').style.display=mode==='ai'?'':'none';init();};
+$('lvlSeg').onclick=e=>{const b=e.target.closest('button');if(!b)return;depth=+b.dataset.lvl;[...$('lvlSeg').children].forEach(x=>x.classList.toggle('active',x===b));init();};
+$('newBtn').onclick=init;$('ovNew').onclick=()=>{$('overlay').classList.remove('show');init();};
+init();
+</script>
+</body>
+</html>

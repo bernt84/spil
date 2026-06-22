@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a3d2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fire på stribe">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a3d2e'/%3E%3Ccircle cx='24' cy='24' r='8' fill='%23e8c468'/%3E%3Ccircle cx='40' cy='40' r='8' fill='%23c0392b'/%3E%3Ccircle cx='40' cy='24' r='8' fill='%23e8c468'/%3E%3Ccircle cx='24' cy='40' r='8' fill='%23c0392b'/%3E%3C/svg%3E">
+<title>Fire på stribe</title>
+<style>
+  :root{--felt:#0a3d2e;--felt-2:#0d4a37;--felt-line:#10573f;--gold:#e8c468;--gold-dim:#b89640;--cream:#f3ead6;--ink:#0a2018;--yellow:#e8c468;--red:#c0392b;--board:#0c4a38;--hole:#08251b;--shadow:rgba(0,0,0,.4);}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;}
+  html,body{margin:0;padding:0;}
+  body{font-family:"Georgia",serif;background:radial-gradient(ellipse at 50% 0%, var(--felt-2), var(--felt) 75%);color:var(--cream);min-height:100vh;min-height:100dvh;padding:env(safe-area-inset-top) 12px 16px;}
+  .wrap{max-width:480px;margin:0 auto;}
+  .topbar{display:flex;align-items:center;gap:10px;padding:10px 2px 6px;}
+  .topbar h1{flex:1;font-size:19px;margin:0;color:var(--gold);font-variant:small-caps;letter-spacing:1px;}
+  .btn{font-family:inherit;font-size:14px;border:1px solid var(--felt-line);border-radius:9px;padding:8px 11px;cursor:pointer;background:transparent;color:var(--gold);}
+  .btn.solid{background:var(--gold);color:var(--ink);border:none;font-weight:bold;}
+  .btn:active{transform:translateY(1px);}
+  a.btn{text-decoration:none;display:inline-block;}
+  .seg{display:flex;border:1px solid var(--felt-line);border-radius:10px;overflow:hidden;margin:8px 0;}
+  .seg button{flex:1;font-family:inherit;background:transparent;color:var(--cream);border:none;padding:10px 4px;cursor:pointer;font-size:13px;}
+  .seg button.active{background:var(--gold);color:var(--ink);font-weight:bold;}
+  .status{text-align:center;font-size:17px;margin:8px 0;color:var(--gold);min-height:24px;}
+  .board{background:var(--board);border-radius:12px;padding:8px;display:grid;grid-template-columns:repeat(7,1fr);gap:6px;box-shadow:0 6px 18px var(--shadow);}
+  .cell{aspect-ratio:1;background:var(--hole);border-radius:50%;cursor:pointer;position:relative;}
+  .disc{position:absolute;inset:6%;border-radius:50%;}
+  .disc.y{background:radial-gradient(circle at 35% 30%,#f4dd96,var(--yellow));}
+  .disc.r{background:radial-gradient(circle at 35% 30%,#e0705f,var(--red));}
+  .disc.win{box-shadow:0 0 0 3px #fff,0 0 12px #fff;}
+  .drop{animation:drop .3s ease-out;}
+  @keyframes drop{0%{transform:translateY(-300%)}}
+  .controls{margin-top:14px;}
+  .overlay{position:fixed;inset:0;background:rgba(5,25,18,.92);z-index:80;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;}
+  .overlay.show{display:flex;}
+  .overlay h2{font-size:30px;margin:0 0 8px;color:var(--gold);font-variant:small-caps;}
+  .overlay p{margin:0 0 18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="btn" href="index.html">‹ Menu</a>
+    <h1>Fire på stribe</h1>
+  </div>
+  <div class="seg" id="modeSeg">
+    <button data-mode="ai" class="active">Mod computer</button>
+    <button data-mode="two">To spillere</button>
+  </div>
+  <div class="seg" id="lvlSeg">
+    <button data-lvl="2">Let</button>
+    <button data-lvl="4" class="active">Mellem</button>
+    <button data-lvl="6">Svær</button>
+  </div>
+  <div class="status" id="status">Din tur (gul)</div>
+  <div class="board" id="board"></div>
+  <div class="controls"><button class="btn solid" id="newBtn" style="width:100%;padding:13px;">Nyt spil</button></div>
+</div>
+<div class="overlay" id="overlay"><h2 id="ovTitle"></h2><p id="ovText"></p><button class="btn solid" id="ovNew" style="font-size:17px;padding:13px 22px;">Spil igen</button></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const COLS=7,ROWS=6;
+let grid,turn,mode='ai',depth=4,over,busy;
+// grid[r][c]: 0 empty, 'y' player, 'r' ai (or p2)
+
+function init(){grid=Array.from({length:ROWS},()=>Array(COLS).fill(0));turn='y';over=false;busy=false;render();status();}
+function render(){
+  const b=$('board');b.innerHTML='';
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const cell=document.createElement('div');cell.className='cell';
+    if(grid[r][c]){const d=document.createElement('div');d.className='disc '+grid[r][c];cell.appendChild(d);}
+    cell.onclick=()=>drop(c);
+    b.appendChild(cell);
+  }
+}
+function status(){$('status').textContent=over?'':mode==='ai'?(turn==='y'?'Din tur (gul)':'Computeren tænker…'):(turn==='y'?'Gul i tur':'Rød i tur');}
+function lowest(g,c){for(let r=ROWS-1;r>=0;r--)if(!g[r][c])return r;return -1;}
+function drop(c){
+  if(over||busy)return;
+  if(mode==='ai'&&turn!=='y')return;
+  const r=lowest(grid,c);if(r<0)return;
+  place(r,c,turn);
+  if(end())return;
+  turn=turn==='y'?'r':'y';status();
+  if(mode==='ai'&&turn==='r'&&!over){busy=true;setTimeout(aiMove,250);}
+}
+function place(r,c,who){grid[r][c]=who;render();
+  // animate last
+  const cell=$('board').children[r*COLS+c];if(cell.firstChild)cell.firstChild.classList.add('drop');
+}
+function winLine(g,who){
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(g[r][c]!==who)continue;
+    for(const[dr,dc]of dirs){
+      const line=[[r,c]];
+      for(let k=1;k<4;k++){const nr=r+dr*k,nc=c+dc*k;if(nr<0||nr>=ROWS||nc<0||nc>=COLS||g[nr][nc]!==who)break;line.push([nr,nc]);}
+      if(line.length===4)return line;
+    }
+  }
+  return null;
+}
+function full(g){return g[0].every(x=>x);}
+function end(){
+  const w=winLine(grid,turn);
+  if(w){over=true;w.forEach(([r,c])=>$('board').children[r*COLS+c].firstChild.classList.add('win'));
+    const win=turn==='y'?'Gul':'Rød';$('ovTitle').textContent=win+' vinder!';$('ovText').textContent='';$('overlay').classList.add('show');return true;}
+  if(full(grid)){over=true;$('ovTitle').textContent='Uafgjort';$('ovText').textContent='Brættet er fyldt.';$('overlay').classList.add('show');return true;}
+  return false;
+}
+/* AI minimax with alpha-beta */
+function score(g){
+  // heuristic: count windows of 4
+  let s=0;
+  const windows=[];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    for(const[dr,dc]of[[0,1],[1,0],[1,1],[1,-1]]){
+      const w=[];for(let k=0;k<4;k++){const nr=r+dr*k,nc=c+dc*k;if(nr<0||nr>=ROWS||nc<0||nc>=COLS){w.length=0;break;}w.push(g[nr][nc]);}
+      if(w.length===4)windows.push(w);
+    }
+  }
+  for(const w of windows){
+    const r=w.filter(x=>x==='r').length,y=w.filter(x=>x==='y').length;
+    if(r&&y)continue;
+    if(r===4)s+=100000;else if(r===3)s+=100;else if(r===2)s+=10;
+    if(y===4)s-=100000;else if(y===3)s-=120;else if(y===2)s-=10;
+  }
+  // center preference
+  for(let r=0;r<ROWS;r++)if(g[r][3]==='r')s+=6;else if(g[r][3]==='y')s-=6;
+  return s;
+}
+function minimax(g,d,alpha,beta,maxer){
+  const rw=winLine(g,'r'),yw=winLine(g,'y');
+  if(rw)return{score:100000+d};if(yw)return{score:-100000-d};
+  if(full(g)||d===0)return{score:score(g)};
+  const cols=[3,2,4,1,5,0,6].filter(c=>lowest(g,c)>=0);
+  let bestCol=cols[0];
+  if(maxer){
+    let val=-Infinity;
+    for(const c of cols){const r=lowest(g,c);g[r][c]='r';const sc=minimax(g,d-1,alpha,beta,false).score;g[r][c]=0;if(sc>val){val=sc;bestCol=c;}alpha=Math.max(alpha,val);if(beta<=alpha)break;}
+    return{score:val,col:bestCol};
+  }else{
+    let val=Infinity;
+    for(const c of cols){const r=lowest(g,c);g[r][c]='y';const sc=minimax(g,d-1,alpha,beta,true).score;g[r][c]=0;if(sc<val){val=sc;bestCol=c;}beta=Math.min(beta,val);if(beta<=alpha)break;}
+    return{score:val,col:bestCol};
+  }
+}
+function aiMove(){
+  const res=minimax(grid.map(r=>r.slice()),depth,-Infinity,Infinity,true);
+  busy=false;
+  const c=res.col;const r=lowest(grid,c);
+  place(r,c,'r');
+  if(end())return;
+  turn='y';status();
+}
+$('modeSeg').onclick=e=>{const b=e.target.closest('button');if(!b)return;mode=b.dataset.mode;[...$('modeSeg').children].forEach(x=>x.classList.toggle('active',x===b));$('lvlSeg').style.display=mode==='ai'?'':'none';init();};
+$('lvlSeg').onclick=e=>{const b=e.target.closest('button');if(!b)return;depth=+b.dataset.lvl;[...$('lvlSeg').children].forEach(x=>x.classList.toggle('active',x===b));init();};
+$('newBtn').onclick=init;$('ovNew').onclick=()=>{$('overlay').classList.remove('show');init();};
+init();
+</script>
+</body>
+</html>

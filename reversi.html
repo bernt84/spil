@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a3d2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Reversi">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a3d2e'/%3E%3Ccircle cx='24' cy='32' r='11' fill='%231a1a1a'/%3E%3Ccircle cx='42' cy='32' r='11' fill='%23f3ead6'/%3E%3C/svg%3E">
+<title>Reversi</title>
+<style>
+  :root{--felt:#0a3d2e;--felt-2:#0d4a37;--felt-line:#10573f;--gold:#e8c468;--gold-dim:#b89640;--cream:#f3ead6;--ink:#0a2018;--board:#0c5a40;--line:#073f2d;--shadow:rgba(0,0,0,.4);}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;}
+  html,body{margin:0;padding:0;}
+  body{font-family:"Georgia",serif;background:radial-gradient(ellipse at 50% 0%, var(--felt-2), var(--felt) 75%);color:var(--cream);min-height:100vh;min-height:100dvh;padding:env(safe-area-inset-top) 12px 16px;}
+  .wrap{max-width:480px;margin:0 auto;}
+  .topbar{display:flex;align-items:center;gap:10px;padding:10px 2px 6px;}
+  .topbar h1{flex:1;font-size:20px;margin:0;color:var(--gold);font-variant:small-caps;letter-spacing:1px;}
+  .btn{font-family:inherit;font-size:14px;border:1px solid var(--felt-line);border-radius:9px;padding:8px 11px;cursor:pointer;background:transparent;color:var(--gold);}
+  .btn.solid{background:var(--gold);color:var(--ink);border:none;font-weight:bold;}
+  .btn:active{transform:translateY(1px);}
+  a.btn{text-decoration:none;display:inline-block;}
+  .seg{display:flex;border:1px solid var(--felt-line);border-radius:10px;overflow:hidden;margin:8px 0;}
+  .seg button{flex:1;font-family:inherit;background:transparent;color:var(--cream);border:none;padding:10px 4px;cursor:pointer;font-size:13px;}
+  .seg button.active{background:var(--gold);color:var(--ink);font-weight:bold;}
+  .scoreline{display:flex;justify-content:center;gap:20px;align-items:center;margin:8px 0;}
+  .scoreline .s{display:flex;align-items:center;gap:8px;font-size:20px;}
+  .chip{width:22px;height:22px;border-radius:50%;display:inline-block;}
+  .chip.b{background:#1a1a1a;}.chip.w{background:#f3ead6;}
+  .turn{text-align:center;font-size:14px;color:var(--gold);min-height:20px;margin-bottom:6px;}
+  .board{background:var(--board);border-radius:10px;padding:6px;display:grid;grid-template-columns:repeat(8,1fr);gap:3px;box-shadow:0 6px 18px var(--shadow);}
+  .cell{aspect-ratio:1;background:var(--board);border:1px solid var(--line);border-radius:4px;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;}
+  .disc{width:80%;height:80%;border-radius:50%;}
+  .disc.b{background:radial-gradient(circle at 35% 30%,#444,#111);}
+  .disc.w{background:radial-gradient(circle at 35% 30%,#fff,#d8cdb0);}
+  .hintdot{width:24%;height:24%;border-radius:50%;background:rgba(232,196,104,.5);}
+  .controls{margin-top:14px;}
+  .overlay{position:fixed;inset:0;background:rgba(5,25,18,.92);z-index:80;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;}
+  .overlay.show{display:flex;}
+  .overlay h2{font-size:30px;margin:0 0 8px;color:var(--gold);font-variant:small-caps;}
+  .overlay p{margin:0 0 18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="btn" href="index.html">‹ Menu</a>
+    <h1>Reversi</h1>
+  </div>
+  <div class="seg" id="modeSeg">
+    <button data-mode="ai" class="active">Mod computer</button>
+    <button data-mode="two">To spillere</button>
+  </div>
+  <div class="seg" id="lvlSeg">
+    <button data-lvl="1">Let</button>
+    <button data-lvl="3" class="active">Mellem</button>
+    <button data-lvl="5">Svær</button>
+  </div>
+  <div class="scoreline">
+    <div class="s"><span class="chip b"></span><span id="bCount">2</span></div>
+    <div class="s"><span class="chip w"></span><span id="wCount">2</span></div>
+  </div>
+  <div class="turn" id="turn">Sort i tur</div>
+  <div class="board" id="board"></div>
+  <div class="controls"><button class="btn solid" id="newBtn" style="width:100%;padding:13px;">Nyt spil</button></div>
+</div>
+<div class="overlay" id="overlay"><h2 id="ovTitle"></h2><p id="ovText"></p><button class="btn solid" id="ovNew" style="font-size:17px;padding:13px 22px;">Spil igen</button></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const N=8;
+const DIRS=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+const WEIGHTS=[
+ [120,-20,20,5,5,20,-20,120],
+ [-20,-40,-5,-5,-5,-5,-40,-20],
+ [20,-5,15,3,3,15,-5,20],
+ [5,-5,3,3,3,3,-5,5],
+ [5,-5,3,3,3,3,-5,5],
+ [20,-5,15,3,3,15,-5,20],
+ [-20,-40,-5,-5,-5,-5,-40,-20],
+ [120,-20,20,5,5,20,-20,120]];
+let board,turn,mode='ai',depth=3,human='b',over;
+
+function init(){
+  board=Array.from({length:N},()=>Array(N).fill(0));
+  board[3][3]='w';board[3][4]='b';board[4][3]='b';board[4][4]='w';
+  turn='b';over=false;render();
+  if(mode==='ai'&&turn!==human)setTimeout(aiMove,300);
+}
+function inb(r,c){return r>=0&&r<N&&c>=0&&c<N;}
+function flips(bd,r,c,who){
+  if(bd[r][c])return[];
+  const opp=who==='b'?'w':'b';const out=[];
+  for(const[dr,dc]of DIRS){
+    let nr=r+dr,nc=c+dc;const line=[];
+    while(inb(nr,nc)&&bd[nr][nc]===opp){line.push([nr,nc]);nr+=dr;nc+=dc;}
+    if(line.length&&inb(nr,nc)&&bd[nr][nc]===who)out.push(...line);
+  }
+  return out;
+}
+function legal(bd,who){const m=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(!bd[r][c]&&flips(bd,r,c,who).length)m.push([r,c]);return m;}
+function applyMove(bd,r,c,who){const nb=bd.map(x=>x.slice());const f=flips(bd,r,c,who);nb[r][c]=who;f.forEach(([fr,fc])=>nb[fr][fc]=who);return nb;}
+
+function render(){
+  const b=$('board');b.innerHTML='';
+  const moves=legal(board,turn);
+  const showHints=(mode==='two')||(turn===human);
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const cell=document.createElement('div');cell.className='cell';
+    if(board[r][c]){const d=document.createElement('div');d.className='disc '+board[r][c];cell.appendChild(d);}
+    else if(showHints&&moves.some(m=>m[0]===r&&m[1]===c)){const h=document.createElement('div');h.className='hintdot';cell.appendChild(h);}
+    cell.onclick=()=>play(r,c);
+    b.appendChild(cell);
+  }
+  const bc=board.flat().filter(x=>x==='b').length,wc=board.flat().filter(x=>x==='w').length;
+  $('bCount').textContent=bc;$('wCount').textContent=wc;
+  $('turn').textContent=over?'':mode==='ai'?(turn===human?'Din tur':'Computeren tænker…'):(turn==='b'?'Sort i tur':'Hvid i tur');
+}
+function play(r,c){
+  if(over)return;
+  if(mode==='ai'&&turn!==human)return;
+  if(!flips(board,r,c,turn).length)return;
+  board=applyMove(board,r,c,turn);
+  nextTurn();
+}
+function nextTurn(){
+  const other=turn==='b'?'w':'b';
+  if(legal(board,other).length){turn=other;}
+  else if(legal(board,turn).length){/* opponent passes, same player */}
+  else{return finish();}
+  render();
+  if(mode==='ai'&&turn!==human&&!over)setTimeout(aiMove,250);
+}
+function finish(){
+  over=true;render();
+  const bc=board.flat().filter(x=>x==='b').length,wc=board.flat().filter(x=>x==='w').length;
+  let title;if(bc>wc)title='Sort vinder!';else if(wc>bc)title='Hvid vinder!';else title='Uafgjort';
+  $('ovTitle').textContent=title;$('ovText').textContent=`Sort ${bc} — Hvid ${wc}`;$('overlay').classList.add('show');
+}
+function evalBoard(bd,me){
+  const opp=me==='b'?'w':'b';let s=0;
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(bd[r][c]===me)s+=WEIGHTS[r][c];else if(bd[r][c]===opp)s-=WEIGHTS[r][c];}
+  s+=(legal(bd,me).length-legal(bd,opp).length)*5;
+  return s;
+}
+function minimax(bd,who,me,d,alpha,beta){
+  const moves=legal(bd,who);
+  if(d===0||(!moves.length&&!legal(bd,who==='b'?'w':'b').length))return{score:evalBoard(bd,me)};
+  if(!moves.length)return minimax(bd,who==='b'?'w':'b',me,d-1,alpha,beta);
+  let best=null;
+  if(who===me){
+    let val=-Infinity;
+    for(const[r,c]of moves){const nb=applyMove(bd,r,c,who);const sc=minimax(nb,who==='b'?'w':'b',me,d-1,alpha,beta).score;if(sc>val){val=sc;best=[r,c];}alpha=Math.max(alpha,val);if(beta<=alpha)break;}
+    return{score:val,move:best};
+  }else{
+    let val=Infinity;
+    for(const[r,c]of moves){const nb=applyMove(bd,r,c,who);const sc=minimax(nb,who==='b'?'w':'b',me,d-1,alpha,beta).score;if(sc<val){val=sc;best=[r,c];}beta=Math.min(beta,val);if(beta<=alpha)break;}
+    return{score:val,move:best};
+  }
+}
+function aiMove(){
+  const moves=legal(board,turn);if(!moves.length){nextTurn();return;}
+  const res=minimax(board,turn,turn,depth,-Infinity,Infinity);
+  const mv=res.move||moves[0];
+  board=applyMove(board,mv[0],mv[1],turn);
+  nextTurn();
+}
+$('modeSeg').onclick=e=>{const b=e.target.closest('button');if(!b)return;mode=b.dataset.mode;[...$('modeSeg').children].forEach(x=>x.classList.toggle('active',x===b));$('lvlSeg').style.display=mode==='ai'?'':'none';init();};
+$('lvlSeg').onclick=e=>{const b=e.target.closest('button');if(!b)return;depth=+b.dataset.lvl;[...$('lvlSeg').children].forEach(x=>x.classList.toggle('active',x===b));init();};
+$('newBtn').onclick=init;$('ovNew').onclick=()=>{$('overlay').classList.remove('show');init();};
+init();
+</script>
+</body>
+</html>
