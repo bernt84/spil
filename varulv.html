@@ -145,10 +145,10 @@ counts.ulv=1;counts.seer=1;
 
 
 function totalAssigned(){return Object.values(counts).reduce((a,b)=>a+b,0);}
+function nonVillagerTotal(){return totalAssigned()-counts.landsby;}
 function villagersFill(){
-  // landsby auto-fills the remainder
-  const others=totalAssigned()-counts.landsby;
-  counts.landsby=Math.max(0,pCount-others);
+  // landsby auto-fills whatever slots the other roles don't use
+  counts.landsby=Math.max(0,pCount-nonVillagerTotal());
 }
 function renderSetup(){
   $('pCount').textContent=pCount;
@@ -167,7 +167,8 @@ function renderSetup(){
       const n=document.createElement('span');n.className='n';n.textContent=counts[r.key];
       const plus=document.createElement('button');plus.textContent='+';
       minus.onclick=()=>{if(counts[r.key]>(r.min||0)){counts[r.key]--;renderSetup();}};
-      plus.onclick=()=>{if(totalAssigned()<pCount||r.key==='ulv'){counts[r.key]++;renderSetup();}};
+      // can add as long as the non-villager roles haven't filled every seat
+      plus.onclick=()=>{if(nonVillagerTotal()<pCount){counts[r.key]++;renderSetup();}};
       cnt.append(minus,n,plus);
     }
     row.appendChild(cnt);
@@ -175,11 +176,11 @@ function renderSetup(){
   });
   const tot=totalAssigned();
   const s=$('summary');
-  const ulve=counts.ulv;
-  if(tot!==pCount){s.className='summary bad';s.textContent=`${tot} roller fordelt — skal være ${pCount}.`;$('startBtn').disabled=true;}
-  else if(ulve<1){s.className='summary bad';s.textContent='Mindst én varulv kræves.';$('startBtn').disabled=true;}
+  const ulve=counts.ulv+counts.ulvekonge+counts.ulvunge;
+  if(nonVillagerTotal()>pCount){s.className='summary bad';s.textContent=`For mange roller — fjern nogle (max ${pCount}).`;$('startBtn').disabled=true;}
+  else if(ulve<1){s.className='summary bad';s.textContent='Mindst én ulv kræves.';$('startBtn').disabled=true;}
   else if(ulve*2>=pCount){s.className='summary bad';s.textContent='For mange ulve — de vinder med det samme.';$('startBtn').disabled=true;}
-  else{s.className='summary';s.textContent=`${pCount} spillere · ${ulve} ulv${ulve>1?'e':''} · ${pCount-ulve} på landsbyens side`;$('startBtn').disabled=false;}
+  else{s.className='summary';s.textContent=`${pCount} spillere · ${ulve} ulv${ulve>1?'e':''} · ${counts.landsby} landsbyboer${counts.landsby!==1?'e':''} · ${pCount-ulve} på landsbyens side`;$('startBtn').disabled=false;}
 }
 $('pMinus').onclick=()=>{if(pCount>4){pCount--;renderSetup();}};
 $('pPlus').onclick=()=>{if(pCount<20){pCount++;renderSetup();}};

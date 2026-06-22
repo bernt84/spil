@@ -152,6 +152,16 @@
 
   <!-- ============ MENU ============ -->
   <section id="menu">
+    <div class="cat-head">Spillere</div>
+    <button class="game-card" id="playersCard">
+      <span class="emoji">👥</span>
+      <span class="gc-body">
+        <span class="gc-title">Mine spillere</span>
+        <span class="gc-desc" id="playersDesc">Tilføj navne, emoji og farver — bruges i alle spil.</span>
+      </span>
+      <span class="arrow">›</span>
+    </button>
+
     <div class="cat-head">Kortspil</div>
     <button class="game-card" data-game="spasser">
       <span class="emoji">♠</span>
@@ -670,6 +680,55 @@
     </div>
   </section>
 
+  <!-- ============ MINE SPILLERE ============ -->
+  <section id="players" class="hidden">
+    <div class="panel">
+      <label>Tilføj spiller</label>
+      <div class="player-add">
+        <input type="text" id="pl-name" placeholder="Navn" maxlength="16" autocomplete="off">
+        <button class="btn" id="pl-add">Tilføj</button>
+      </div>
+      <p style="font-size:13px;color:var(--gold-dim);margin:10px 0 0;line-height:1.5;">Tilføj alle der spiller med. Tryk på en spiller for at vælge emoji, billede og farve.</p>
+    </div>
+    <div class="panel">
+      <label>Spillere</label>
+      <ul class="list" id="pl-list"></ul>
+      <p id="pl-empty" style="font-size:14px;color:var(--gold-dim);text-align:center;padding:14px 0;">Ingen spillere endnu.</p>
+    </div>
+  </section>
+
+</div>
+
+<!-- player editor modal -->
+<div id="pl-editor" class="hidden" style="position:fixed;inset:0;background:rgba(5,25,18,.92);z-index:65;display:flex;align-items:center;justify-content:center;padding:18px;">
+  <div style="background:var(--felt-2);border:1px solid var(--gold-dim);border-radius:16px;padding:18px;width:100%;max-width:420px;max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <strong style="color:var(--gold);font-size:18px;" id="pl-ed-title">Rediger spiller</strong>
+      <button class="btn ghost" id="pl-ed-close">Luk</button>
+    </div>
+    <div style="text-align:center;margin-bottom:14px;">
+      <div id="pl-ed-preview" style="width:72px;height:72px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:38px;background:#093427;border:2px solid var(--felt-line);overflow:hidden;"></div>
+      <input type="text" id="pl-ed-name" maxlength="16" style="width:100%;font-family:inherit;font-size:18px;padding:10px 12px;border-radius:9px;border:1px solid var(--felt-line);background:#093427;color:var(--cream);text-align:center;">
+    </div>
+
+    <label style="font-size:12px;letter-spacing:1px;color:var(--gold-dim);text-transform:uppercase;">Billede</label>
+    <div style="display:flex;gap:8px;margin:6px 0 14px;">
+      <button class="btn" id="pl-ed-photo" style="flex:1;">📷 Vælg / tag billede</button>
+      <button class="btn" id="pl-ed-nophoto" style="flex:0 0 auto;">Fjern</button>
+    </div>
+    <input type="file" id="pl-ed-file" accept="image/*" style="display:none;">
+
+    <label style="font-size:12px;letter-spacing:1px;color:var(--gold-dim);text-transform:uppercase;">Emoji</label>
+    <div id="pl-ed-emojis" style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px;"></div>
+
+    <label style="font-size:12px;letter-spacing:1px;color:var(--gold-dim);text-transform:uppercase;">Farve på navnet</label>
+    <div id="pl-ed-colors" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 16px;"></div>
+
+    <div style="display:flex;gap:8px;">
+      <button class="btn" id="pl-ed-delete" style="color:#e88;border-color:#7a3434;">Slet spiller</button>
+      <button class="btn solid" id="pl-ed-save" style="flex:1;">Gem</button>
+    </div>
+  </div>
 </div>
 <div id="rm-calc" class="hidden" style="position:fixed;inset:0;background:rgba(5,25,18,.9);z-index:60;align-items:flex-end;">
   <div style="background:var(--felt-2);border-top:1px solid var(--gold-dim);border-radius:16px 16px 0 0;width:100%;max-width:560px;margin:0 auto;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:85vh;overflow-y:auto;">
@@ -725,14 +784,16 @@ function show(screen){
   $('rovhul').classList.toggle('hidden',screen!=='rovhul');
   $('majer').classList.toggle('hidden',screen!=='majer');
   $('loegn').classList.toggle('hidden',screen!=='loegn');
+  $('players').classList.toggle('hidden',screen!=='players');
   $('homeBtn').classList.toggle('hidden',screen==='menu');
-  if(screen==='menu'){$('appTitle').textContent='Spil';$('appSub').textContent='Vælg et spil';}
+  if(screen==='menu'){$('appTitle').textContent='Spil';$('appSub').textContent='Vælg et spil';updPlayersDesc();}
   if(screen==='spasser'){$('appTitle').textContent='Spasser Vest';$('appSub').textContent='Meld dine stik';svRender();}
   if(screen==='rummy'){$('appTitle').textContent='500 Rummy';$('appSub').textContent='Først til 500';rmRender();}
   if(screen==='enogtredive'){$('appTitle').textContent='31';$('appSub').textContent='Regler';}
   if(screen==='rovhul'){$('appTitle').textContent='Røvhul';$('appSub').textContent='Regler';}
   if(screen==='majer'){$('appTitle').textContent='Majer';$('appSub').textContent='Regler';}
   if(screen==='loegn'){$('appTitle').textContent='Løgn';$('appSub').textContent='Regler';}
+  if(screen==='players'){$('appTitle').textContent='Mine spillere';$('appSub').textContent='Huskes på din telefon';plRender();}
 }
 document.querySelectorAll('.game-card').forEach(c=>{c.onclick=()=>show(c.dataset.game);});
 $('homeBtn').onclick=()=>show('menu');
@@ -1025,6 +1086,108 @@ $('rm-calc-close').onclick=()=>$('rm-calc').classList.add('hidden');
     btn.style.display='none';bar.classList.remove('hidden');
   }
 })();
+
+/* ============================================================
+   MINE SPILLERE (shared roster, stored separately, persistent)
+   ============================================================ */
+const PL_EMOJIS=['😀','😎','🤠','🥳','😈','🤓','🧐','🤖','👻','🦊','🐺','🐻','🐼','🦁','🐯','🐸','🦉','🦄','🐙','🦋','🐝','🐬','🦔','🐲','👑','🎩','⭐','🔥','⚡','🍺','🍕','🎸','🎲','🏆','💀','🌟'];
+const PL_COLORS=['#e8c468','#74d39a','#7fb7ff','#e88','#b69cff','#5fd0d0','#e8a85f','#f3ead6','#e85d8a','#9ad14b'];
+let players=loadPlayers();
+function loadPlayers(){try{return JSON.parse(localStorage.getItem('spil_players'))||[];}catch(e){return [];}}
+function savePlayers(){try{localStorage.setItem('spil_players',JSON.stringify(players));}catch(e){}}
+function uid(){return 'p'+Date.now()+Math.floor(Math.random()*1000);}
+
+function updPlayersDesc(){
+  const d=$('playersDesc');if(!d)return;
+  d.textContent=players.length?`${players.length} spiller${players.length>1?'e':''} gemt — tryk for at redigere.`:'Tilføj navne, emoji og farver — bruges i alle spil.';
+}
+$('playersCard').onclick=()=>show('players');
+
+function plAvatar(p,size){
+  size=size||34;
+  if(p.photo)return `<span style="width:${size}px;height:${size}px;border-radius:50%;background-image:url('${p.photo}');background-size:cover;background-position:center;display:inline-block;flex:0 0 auto;"></span>`;
+  if(p.emoji)return `<span style="width:${size}px;height:${size}px;border-radius:50%;background:#093427;display:inline-flex;align-items:center;justify-content:center;font-size:${size*0.55}px;flex:0 0 auto;">${p.emoji}</span>`;
+  const initial=(p.name||'?').trim().charAt(0).toUpperCase();
+  return `<span style="width:${size}px;height:${size}px;border-radius:50%;background:#093427;display:inline-flex;align-items:center;justify-content:center;font-size:${size*0.42}px;color:${p.color||'var(--gold)'};flex:0 0 auto;">${initial}</span>`;
+}
+function plRender(){
+  const ul=$('pl-list');ul.innerHTML='';
+  $('pl-empty').style.display=players.length?'none':'block';
+  players.forEach((p,i)=>{
+    const li=document.createElement('li');
+    li.style.cursor='pointer';
+    li.innerHTML=`${plAvatar(p)}<span class="name" style="color:${p.color||'var(--cream)'}">${escapeHtml(p.name)}</span><span class="pill">✎</span>`;
+    li.onclick=()=>plOpenEditor(i);
+    ul.appendChild(li);
+  });
+  updPlayersDesc();
+}
+$('pl-add').onclick=plAdd;
+$('pl-name').addEventListener('keydown',e=>{if(e.key==='Enter')plAdd();});
+function plAdd(){
+  const n=$('pl-name').value.trim();if(!n)return;
+  const color=PL_COLORS[players.length%PL_COLORS.length];
+  players.push({id:uid(),name:n,emoji:'',photo:'',color});
+  $('pl-name').value='';savePlayers();plRender();
+}
+
+let plEditIdx=-1, plDraft=null;
+function plOpenEditor(i){
+  plEditIdx=i;plDraft={...players[i]};
+  $('pl-ed-name').value=plDraft.name;
+  const eg=$('pl-ed-emojis');eg.innerHTML='';
+  const noneBtn=document.createElement('button');noneBtn.className='btn';noneBtn.textContent='Ingen';noneBtn.style.fontSize='13px';
+  noneBtn.onclick=()=>{plDraft.emoji='';plDraft.photo='';plUpdatePreview();plMarkEmoji();};
+  eg.appendChild(noneBtn);
+  PL_EMOJIS.forEach(em=>{
+    const b=document.createElement('button');b.className='btn';b.textContent=em;b.style.fontSize='22px';b.style.padding='4px 8px';b.dataset.em=em;
+    b.onclick=()=>{plDraft.emoji=em;plDraft.photo='';plUpdatePreview();plMarkEmoji();};
+    eg.appendChild(b);
+  });
+  const cg=$('pl-ed-colors');cg.innerHTML='';
+  PL_COLORS.forEach(col=>{
+    const b=document.createElement('button');b.style.width='34px';b.style.height='34px';b.style.borderRadius='50%';b.style.background=col;b.style.border='2px solid transparent';b.style.cursor='pointer';b.dataset.col=col;
+    b.onclick=()=>{plDraft.color=col;plMarkColor();plUpdatePreview();};
+    cg.appendChild(b);
+  });
+  plMarkEmoji();plMarkColor();plUpdatePreview();
+  $('pl-editor').classList.remove('hidden');
+}
+function plUpdatePreview(){
+  const pv=$('pl-ed-preview');
+  if(plDraft.photo){pv.style.backgroundImage=`url('${plDraft.photo}')`;pv.style.backgroundSize='cover';pv.style.backgroundPosition='center';pv.textContent='';}
+  else{pv.style.backgroundImage='';pv.textContent=plDraft.emoji||(plDraft.name||'?').charAt(0).toUpperCase();pv.style.color=plDraft.color||'var(--gold)';}
+}
+function plMarkEmoji(){document.querySelectorAll('#pl-ed-emojis button').forEach(b=>{b.style.outline=(b.dataset.em&&b.dataset.em===plDraft.emoji&&!plDraft.photo)?'2px solid var(--gold)':'none';});}
+function plMarkColor(){document.querySelectorAll('#pl-ed-colors button').forEach(b=>{b.style.borderColor=(b.dataset.col===plDraft.color)?'var(--cream)':'transparent';});}
+$('pl-ed-name').addEventListener('input',e=>{plDraft.name=e.target.value;if(!plDraft.emoji&&!plDraft.photo)plUpdatePreview();});
+$('pl-ed-photo').onclick=()=>$('pl-ed-file').click();
+$('pl-ed-file').onchange=e=>{
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const img=new Image();
+    img.onload=()=>{
+      const size=160;const cv=document.createElement('canvas');cv.width=cv.height=size;
+      const ctx=cv.getContext('2d');
+      const s=Math.min(img.width,img.height);const sx=(img.width-s)/2,sy=(img.height-s)/2;
+      ctx.drawImage(img,sx,sy,s,s,0,0,size,size);
+      plDraft.photo=cv.toDataURL('image/jpeg',0.7);plDraft.emoji='';
+      plUpdatePreview();plMarkEmoji();
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+$('pl-ed-nophoto').onclick=()=>{plDraft.photo='';plUpdatePreview();};
+$('pl-ed-close').onclick=()=>$('pl-editor').classList.add('hidden');
+$('pl-ed-save').onclick=()=>{
+  plDraft.name=$('pl-ed-name').value.trim()||plDraft.name;
+  players[plEditIdx]=plDraft;savePlayers();plRender();$('pl-editor').classList.add('hidden');
+};
+$('pl-ed-delete').onclick=()=>{
+  if(confirm('Slet denne spiller?')){players.splice(plEditIdx,1);savePlayers();plRender();$('pl-editor').classList.add('hidden');}
+};
 
 /* ---------- BOOT ---------- */
 // Always start on the menu (games keep their saved state and resume when opened)
