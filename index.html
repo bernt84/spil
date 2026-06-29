@@ -131,6 +131,7 @@
   .win-banner .pts{font-size:15px;color:var(--cream);margin-top:4px;}
 
   .install-bar{position:fixed;left:0;right:0;bottom:0;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:rgba(7,40,30,.96);border-top:1px solid var(--gold-dim);box-shadow:0 -4px 16px var(--shadow);display:flex;align-items:center;gap:12px;z-index:50;}
+  .install-bar.hidden{display:none;}
   .install-bar .txt{flex:1;font-size:14px;color:var(--cream);line-height:1.4;}
   .install-bar .txt b{color:var(--gold);}
   .install-bar .x{background:none;border:none;color:var(--gold-dim);font-size:22px;cursor:pointer;padding:4px;line-height:1;}
@@ -1172,12 +1173,14 @@ $('rm-calc-close').onclick=()=>$('rm-calc').classList.add('hidden');
   window.addEventListener('beforeinstallprompt',e=>{
     e.preventDefault();deferred=e;
     txt.innerHTML='Læg <b>Spil</b> på hjemmeskærmen for hurtig adgang.';
-    btn.style.display='inline-block';bar.classList.remove('hidden');
+    btn.style.display='inline-block';
+    if(txt.textContent.trim())bar.classList.remove('hidden');
   });
   btn.onclick=async()=>{if(!deferred)return;deferred.prompt();await deferred.userChoice;deferred=null;bar.classList.add('hidden');};
   if(isIOS){
     txt.innerHTML='Installér: tryk <span style="color:var(--gold)">Del-ikonet ⬆</span> nederst og vælg <b>“Føj til hjemmeskærm”</b>.';
-    btn.style.display='none';bar.classList.remove('hidden');
+    btn.style.display='none';
+    if(txt.textContent.trim())bar.classList.remove('hidden');
   }
 })();
 
